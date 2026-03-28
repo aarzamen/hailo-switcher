@@ -9,6 +9,7 @@ import type {
 } from "@/types/pipeline";
 
 const MAX_LOG_LINES = 2000;
+const FPS_REGEX = /FPS:\s*([\d.]+)/;
 
 interface PipelineState {
   activePipeline: PipelineDefinition | null;
@@ -18,9 +19,9 @@ interface PipelineState {
   logs: LogEntry[];
   availableDevices: string[];
   errorMessage: string | null;
+  currentFps: string | null;
   listenersInitialized: boolean;
 
-  // Actions
   selectPipeline: (pipeline: PipelineDefinition | null) => void;
   setInputSource: (source: InputSourceType) => void;
   setInputFilePath: (path: string) => void;
@@ -40,6 +41,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   logs: [],
   availableDevices: [],
   errorMessage: null,
+  currentFps: null,
   listenersInitialized: false,
 
   selectPipeline: (pipeline) => set({ activePipeline: pipeline }),
@@ -52,7 +54,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const { activePipeline, inputSource, inputFilePath } = get();
     if (!activePipeline) return;
 
-    set({ pipelineStatus: "starting", errorMessage: null, logs: [] });
+    set({ pipelineStatus: "starting", errorMessage: null, logs: [], currentFps: null });
 
     let inputArg: string | null = null;
     if (inputSource === "usb") inputArg = "usb";
@@ -85,14 +87,23 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   appendLog: (entry) =>
     set((state) => {
+      // Parse FPS from stdout lines
+      let fps = state.currentFps;
+      if (entry.stream === "stdout") {
+        const match = entry.line.match(FPS_REGEX);
+        if (match) {
+          fps = match[1];
+        }
+      }
+
       const logs = [...state.logs, entry];
       if (logs.length > MAX_LOG_LINES) {
-        return { logs: logs.slice(logs.length - MAX_LOG_LINES) };
+        return { logs: logs.slice(logs.length - MAX_LOG_LINES), currentFps: fps };
       }
-      return { logs };
+      return { logs, currentFps: fps };
     }),
 
-  clearLogs: () => set({ logs: [] }),
+  clearLogs: () => set({ logs: [], currentFps: null }),
 
   refreshDevices: async () => {
     try {
@@ -121,10 +132,15 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     listen<{ status: PipelineStatus; error?: string }>(
       "pipeline-status",
       (event) => {
-        set({
+        const updates: Partial<PipelineState> = {
           pipelineStatus: event.payload.status,
           errorMessage: event.payload.error ?? null,
-        });
+        };
+        // Clear FPS when pipeline stops
+        if (event.payload.status === "idle" || event.payload.status === "error") {
+          updates.currentFps = null;
+        }
+        set(updates);
       }
     );
   },

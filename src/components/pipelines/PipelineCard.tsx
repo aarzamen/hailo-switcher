@@ -21,12 +21,14 @@ const CATEGORY_ICONS: Record<string, React.ComponentType<{ size?: number | strin
 interface PipelineCardProps {
   pipeline: PipelineDefinition;
   isActive: boolean;
+  isRunning: boolean;
   onClick: () => void;
 }
 
 export const PipelineCard: React.FC<PipelineCardProps> = ({
   pipeline,
   isActive,
+  isRunning,
   onClick,
 }) => {
   const Icon = CATEGORY_ICONS[pipeline.category] ?? ScanSearch;
@@ -35,9 +37,11 @@ export const PipelineCard: React.FC<PipelineCardProps> = ({
     <div
       onClick={onClick}
       className={`settings-group-hover flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
-        isActive
-          ? "border-logo-primary bg-accent-glow shadow-[0_0_12px_var(--color-accent-glow)]"
-          : "border-transparent hover:border-surface-border hover:bg-mid-gray/5"
+        isRunning
+          ? "border-green-400 bg-green-400/5 shadow-[0_0_12px_rgba(74,222,128,0.15)]"
+          : isActive
+            ? "border-logo-primary bg-accent-glow shadow-[0_0_12px_var(--color-accent-glow)]"
+            : "border-transparent hover:border-surface-border hover:bg-mid-gray/5"
       }`}
     >
       <Icon
@@ -46,6 +50,9 @@ export const PipelineCard: React.FC<PipelineCardProps> = ({
       />
       <div className="min-w-0">
         <div className="flex items-center gap-2">
+          {isRunning && (
+            <span className="inline-block w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+          )}
           <h3 className="text-sm font-semibold truncate">{pipeline.name}</h3>
           <span
             className={`text-[10px] px-1.5 py-0.5 rounded font-medium shrink-0 ${

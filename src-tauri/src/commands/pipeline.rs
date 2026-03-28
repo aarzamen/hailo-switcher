@@ -24,6 +24,13 @@ pub async fn start_pipeline(
         }
     };
     if was_running {
+        let _ = app.emit(
+            "pipeline-status",
+            StatusPayload {
+                status: "cooldown".to_string(),
+                error: None,
+            },
+        );
         // Wait for SIGKILL to take effect and Hailo device to be released
         tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
     }

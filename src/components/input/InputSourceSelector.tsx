@@ -40,6 +40,7 @@ export const InputSourceSelector: React.FC = () => {
   const inputSource = usePipelineStore((s) => s.inputSource);
   const inputFilePath = usePipelineStore((s) => s.inputFilePath);
   const availableDevices = usePipelineStore((s) => s.availableDevices);
+  const activePipeline = usePipelineStore((s) => s.activePipeline);
   const setInputSource = usePipelineStore((s) => s.setInputSource);
   const setInputFilePath = usePipelineStore((s) => s.setInputFilePath);
   const refreshDevices = usePipelineStore((s) => s.refreshDevices);
@@ -66,23 +67,31 @@ export const InputSourceSelector: React.FC = () => {
           {INPUT_OPTIONS.map((opt) => {
             const Icon = opt.icon;
             const isActive = inputSource === opt.type;
+            const isSupported = !activePipeline || activePipeline.supportedInputs.includes(opt.type);
 
             return (
               <div
                 key={opt.type}
-                onClick={() => setInputSource(opt.type)}
-                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all border ${
-                  isActive
-                    ? "border-logo-primary bg-accent-glow"
-                    : "border-transparent hover:bg-mid-gray/10"
+                onClick={() => isSupported && setInputSource(opt.type)}
+                className={`flex items-center gap-3 p-3 rounded-lg transition-all border ${
+                  !isSupported
+                    ? "opacity-40 cursor-not-allowed border-transparent"
+                    : isActive
+                      ? "border-logo-primary bg-accent-glow cursor-pointer"
+                      : "border-transparent hover:bg-mid-gray/10 cursor-pointer"
                 }`}
               >
                 <Icon
                   size={22}
-                  className={isActive ? "text-logo-primary" : "text-mid-gray"}
+                  className={isActive && isSupported ? "text-logo-primary" : "text-mid-gray"}
                 />
                 <div>
-                  <h3 className="text-sm font-medium">{opt.label}</h3>
+                  <h3 className="text-sm font-medium">
+                    {opt.label}
+                    {!isSupported && (
+                      <span className="text-[10px] text-mid-gray ml-2">(not supported)</span>
+                    )}
+                  </h3>
                   <p className="text-xs text-mid-gray">{opt.description}</p>
                 </div>
               </div>

@@ -8,6 +8,7 @@ import type { PipelineDefinition } from "@/types/pipeline";
 
 export const PipelineGrid: React.FC = () => {
   const activePipeline = usePipelineStore((s) => s.activePipeline);
+  const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
   const selectPipeline = usePipelineStore((s) => s.selectPipeline);
 
   // Group pipelines by category
@@ -41,6 +42,7 @@ export const PipelineGrid: React.FC = () => {
                 key={p.id}
                 pipeline={p}
                 isActive={activePipeline?.id === p.id}
+                isRunning={activePipeline?.id === p.id && pipelineStatus === "running"}
                 onClick={() =>
                   selectPipeline(activePipeline?.id === p.id ? null : p)
                 }

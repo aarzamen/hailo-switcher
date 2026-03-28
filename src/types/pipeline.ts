@@ -1,5 +1,5 @@
 export type PipelineType = "python" | "rpicam";
-export type PipelineStatus = "idle" | "starting" | "running" | "stopping" | "error";
+export type PipelineStatus = "idle" | "cooldown" | "starting" | "running" | "stopping" | "error";
 export type InputSourceType = "default" | "usb" | "file" | "rpi";
 
 export interface PipelineDefinition {
