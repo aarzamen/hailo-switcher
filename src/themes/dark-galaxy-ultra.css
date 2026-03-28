@@ -1,0 +1,55 @@
+/* Dark Galaxy Ultra Theme — Sci-fi command console with cyan accents */
+
+.theme-dark-galaxy-ultra {
+  --color-text: #e0e6f0;
+  --color-background: #0d0f18;
+  --color-background-card: #131627;
+  --color-sidebar-bg: #0a0c14;
+  --color-background-ui: #00e5ff;
+  --color-logo-primary: #00e5ff;
+  --color-logo-stroke: #00e5ff;
+  --color-text-stroke: #1a1d2e;
+  --color-mid-gray: #6b7394;
+  --color-surface-border: rgba(255, 255, 255, 0.06);
+  --color-accent-glow: rgba(0, 229, 255, 0.15);
+}
+
+/* Dot grid star field background */
+.theme-dark-galaxy-ultra body,
+.theme-dark-galaxy-ultra .app-root {
+  background-color: #0d0f18;
+  background-image: radial-gradient(
+    circle,
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px
+  );
+  background-size: 24px 24px;
+}
+
+/* Sidebar darker band */
+.theme-dark-galaxy-ultra .sidebar-region {
+  background-color: var(--color-sidebar-bg);
+}
+
+/* Card left accent bar */
+.theme-dark-galaxy-ultra .settings-card {
+  border-left: 2px solid var(--color-logo-primary);
+  background-color: var(--color-background-card);
+}
+
+/* Section headers — cyan accent color in galaxy theme */
+.theme-dark-galaxy-ultra .settings-card + .settings-card,
+.theme-dark-galaxy-ultra h2 {
+  color: var(--color-logo-primary);
+}
+
+/* Scrollbar */
+.theme-dark-galaxy-ultra {
+  --scrollbar-thumb: rgba(107, 115, 148, 0.3);
+  --scrollbar-thumb-hover: rgba(107, 115, 148, 0.5);
+}
+
+/* Glow on interactive card hover */
+.theme-dark-galaxy-ultra .settings-group-hover:hover {
+  box-shadow: 0 0 12px var(--color-accent-glow);
+}
