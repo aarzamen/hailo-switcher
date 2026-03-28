@@ -1,6 +1,8 @@
-import React from "react";
-import { Play, Square, Loader2 } from "lucide-react";
+import React, { useState, useCallback } from "react";
+import { Play, Square, Loader2, Camera, Video, Circle } from "lucide-react";
 import { usePipelineStore } from "@/stores/pipelineStore";
+import { useCaptureStore } from "@/stores/captureStore";
+import { open } from "@tauri-apps/plugin-dialog";
 
 export const Footer: React.FC = () => {
   const activePipeline = usePipelineStore((s) => s.activePipeline);
@@ -8,6 +10,17 @@ export const Footer: React.FC = () => {
   const currentFps = usePipelineStore((s) => s.currentFps);
   const startPipeline = usePipelineStore((s) => s.startPipeline);
   const stopPipeline = usePipelineStore((s) => s.stopPipeline);
+
+  const captureMode = useCaptureStore((s) => s.captureMode);
+  const isRecording = useCaptureStore((s) => s.isRecording);
+  const toggleCaptureMode = useCaptureStore((s) => s.toggleCaptureMode);
+  const takeScreenshot = useCaptureStore((s) => s.takeScreenshot);
+  const startRecording = useCaptureStore((s) => s.startRecording);
+  const stopRecording = useCaptureStore((s) => s.stopRecording);
+  const setSaveDirectory = useCaptureStore((s) => s.setSaveDirectory);
+
+  const [flashCapture, setFlashCapture] = useState(false);
+  const [hasPickedDir, setHasPickedDir] = useState(false);
 
   const isRunning = pipelineStatus === "running" || pipelineStatus === "starting";
   const isBusy = pipelineStatus === "stopping" || pipelineStatus === "cooldown";
@@ -26,6 +39,40 @@ export const Footer: React.FC = () => {
   const statusLabel =
     pipelineStatus === "cooldown" ? "NPU Cooldown" : pipelineStatus;
 
+  const promptDirectory = useCallback(async (): Promise<boolean> => {
+    if (hasPickedDir) return true;
+    try {
+      const selected = await open({ directory: true, title: "Save captures to..." });
+      if (selected) {
+        setSaveDirectory(selected as string);
+      }
+      // Even if cancelled, mark as picked so we don't re-prompt (uses default)
+      setHasPickedDir(true);
+      return true;
+    } catch {
+      setHasPickedDir(true);
+      return true;
+    }
+  }, [hasPickedDir, setSaveDirectory]);
+
+  const handleCapture = useCallback(async () => {
+    await promptDirectory();
+
+    if (captureMode === "still") {
+      await takeScreenshot();
+      setFlashCapture(true);
+      setTimeout(() => setFlashCapture(false), 500);
+    } else {
+      if (isRecording) {
+        await stopRecording();
+        setFlashCapture(true);
+        setTimeout(() => setFlashCapture(false), 500);
+      } else {
+        await startRecording();
+      }
+    }
+  }, [captureMode, isRecording, takeScreenshot, startRecording, stopRecording, promptDirectory]);
+
   return (
     <div className="flex items-center justify-between px-4 py-2 border-t border-surface-border bg-sidebar-bg">
       {/* Status */}
@@ -40,29 +87,73 @@ export const Footer: React.FC = () => {
         )}
       </div>
 
-      {/* Action button */}
-      {activePipeline && (
-        <button
-          onClick={() => (isRunning || isBusy) ? stopPipeline() : startPipeline()}
-          disabled={isBusy}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium text-xs transition-all ${
-            isRunning
-              ? "bg-red-500/90 hover:bg-red-500 text-white"
-              : isBusy
-                ? "bg-mid-gray/30 text-mid-gray cursor-wait"
-                : "bg-logo-primary/90 hover:bg-logo-primary text-background"
-          }`}
-        >
-          {isBusy ? (
-            <Loader2 size={14} className="animate-spin" />
-          ) : isRunning ? (
-            <Square size={14} />
-          ) : (
-            <Play size={14} />
-          )}
-          {isBusy ? (pipelineStatus === "cooldown" ? "Cooldown" : "Stopping") : isRunning ? "Stop" : "Run"}
-        </button>
-      )}
+      {/* Controls */}
+      <div className="flex items-center gap-2">
+        {/* Capture controls */}
+        <div className="flex items-center gap-1 mr-2">
+          {/* Mode toggle */}
+          <button
+            onClick={toggleCaptureMode}
+            className="p-1.5 rounded border border-mid-gray/30 text-mid-gray hover:text-text hover:border-mid-gray/60 transition-all"
+            title={captureMode === "still" ? "Switch to video" : "Switch to still"}
+          >
+            {captureMode === "still" ? <Camera size={12} /> : <Video size={12} />}
+          </button>
+
+          {/* Capture/Record button */}
+          <button
+            onClick={handleCapture}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all ${
+              flashCapture
+                ? "bg-green-500/80 text-white"
+                : isRecording
+                  ? "bg-red-500/90 hover:bg-red-500 text-white"
+                  : "border border-mid-gray/30 text-mid-gray hover:text-text hover:border-mid-gray/60"
+            }`}
+          >
+            {captureMode === "still" ? (
+              <>
+                <Camera size={11} />
+                Snap
+              </>
+            ) : isRecording ? (
+              <>
+                <Circle size={9} className="fill-current animate-pulse" />
+                STOP
+              </>
+            ) : (
+              <>
+                <Circle size={9} className="fill-current" />
+                REC
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Pipeline action button */}
+        {activePipeline && (
+          <button
+            onClick={() => (isRunning || isBusy) ? stopPipeline() : startPipeline()}
+            disabled={isBusy}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium text-xs transition-all ${
+              isRunning
+                ? "bg-red-500/90 hover:bg-red-500 text-white"
+                : isBusy
+                  ? "bg-mid-gray/30 text-mid-gray cursor-wait"
+                  : "bg-logo-primary/90 hover:bg-logo-primary text-background"
+            }`}
+          >
+            {isBusy ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : isRunning ? (
+              <Square size={14} />
+            ) : (
+              <Play size={14} />
+            )}
+            {isBusy ? (pipelineStatus === "cooldown" ? "Cooldown" : "Stopping") : isRunning ? "Stop" : "Run"}
+          </button>
+        )}
+      </div>
 
       {/* Version */}
       <span className="text-[10px] text-mid-gray/50">v0.1.0</span>

@@ -15,6 +15,8 @@ pub type SharedProcessManager = Arc<Mutex<ProcessManager>>;
 pub fn run() {
     let manager: SharedProcessManager = Arc::new(Mutex::new(ProcessManager::new()));
     let cfg = config::Config::load();
+    let recording_state: commands::capture::SharedRecordingState =
+        Mutex::new(commands::capture::RecordingState::new());
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -26,12 +28,16 @@ pub fn run() {
         )
         .manage(manager)
         .manage(cfg)
+        .manage(recording_state)
         .invoke_handler(tauri::generate_handler![
             commands::pipeline::start_pipeline,
             commands::pipeline::stop_pipeline,
             commands::pipeline::get_pipeline_status,
             commands::system::list_video_devices,
             commands::system::check_hailo_status,
+            commands::capture::take_screenshot,
+            commands::capture::start_recording,
+            commands::capture::stop_recording,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
