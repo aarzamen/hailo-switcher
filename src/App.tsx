@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import "./App.css";
 import { Sidebar, SECTIONS_CONFIG, type SidebarSection } from "./components/Sidebar";
 import { Footer } from "./components/footer/Footer";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { usePipelineStore } from "./stores/pipelineStore";
 
 const App: React.FC = () => {
@@ -25,7 +26,9 @@ const App: React.FC = () => {
         />
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4">
-            <ActiveComponent />
+            <ErrorBoundary>
+              <ActiveComponent />
+            </ErrorBoundary>
           </div>
         </div>
       </div>

@@ -1,11 +1,7 @@
+use crate::config::Config;
 use crate::process_manager::{self, StatusPayload};
 use crate::SharedProcessManager;
 use tauri::{AppHandle, Emitter, State};
-
-const HAILO_EXAMPLES_DIR: &str = "/home/ama/hailo/hailo-rpi5-examples";
-const PYTHON_BIN: &str =
-    "/home/ama/hailo/hailo-rpi5-examples/venv_hailo_rpi_examples/bin/python";
-const ENV_FILE: &str = "/home/ama/hailo/hailo-rpi5-examples/.env";
 
 #[tauri::command]
 pub async fn start_pipeline(
@@ -15,6 +11,7 @@ pub async fn start_pipeline(
     json_config: Option<String>,
     input_source: Option<String>,
     state: State<'_, SharedProcessManager>,
+    cfg: State<'_, Config>,
 ) -> Result<(), String> {
     // Stop any existing pipeline first
     let was_running = {
@@ -54,18 +51,18 @@ pub async fn start_pipeline(
             }
 
             let env_vars = vec![
-                ("PYTHONPATH".to_string(), HAILO_EXAMPLES_DIR.to_string()),
-                ("HAILO_ENV_FILE".to_string(), ENV_FILE.to_string()),
-                ("GST_PLUGIN_PATH".to_string(), "/usr/lib/aarch64-linux-gnu/gstreamer-1.0".to_string()),
-                ("LD_LIBRARY_PATH".to_string(), "/usr/lib/aarch64-linux-gnu/hailo/tappas/post_processes:/usr/local/hailo/resources/so".to_string()),
+                ("PYTHONPATH".to_string(), cfg.hailo_examples_dir.clone()),
+                ("HAILO_ENV_FILE".to_string(), cfg.env_file.clone()),
+                ("GST_PLUGIN_PATH".to_string(), cfg.gst_plugin_path.clone()),
+                ("LD_LIBRARY_PATH".to_string(), cfg.ld_library_path.clone()),
             ];
 
             process_manager::spawn_pipeline(
                 app,
-                PYTHON_BIN,
+                &cfg.python_bin,
                 &args,
                 env_vars,
-                Some(HAILO_EXAMPLES_DIR),
+                Some(&cfg.hailo_examples_dir),
                 manager,
             )?;
         }
@@ -76,7 +73,7 @@ pub async fn start_pipeline(
                 "-t".to_string(),
                 "0".to_string(),
                 "--post-process-file".to_string(),
-                format!("/usr/share/rpi-camera-assets/{}", json_config),
+                format!("{}/{}", cfg.rpicam_assets_dir, json_config),
             ];
 
             process_manager::spawn_pipeline(

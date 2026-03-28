@@ -57,7 +57,7 @@ export const LogViewer: React.FC = () => {
         ) : (
           logs.map((entry, i) => (
             <div
-              key={i}
+              key={`${entry.timestamp}-${i}`}
               className={
                 entry.stream === "stderr"
                   ? "text-red-400"
