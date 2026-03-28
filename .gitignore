@@ -13,8 +13,12 @@ src-tauri/gen/
 *.log
 hailort.log
 
-# Lock files (bun)
+# Lock files
 bun.lock
+bun.lockb
+
+# Bundle artifacts
+*.deb
 
 # OS
 .DS_Store

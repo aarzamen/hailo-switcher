@@ -4,6 +4,17 @@ A desktop GUI for browsing and launching Hailo NPU AI demo pipelines on Raspberr
 
 ![Dark Galaxy Ultra Theme](doc/screenshot.png)
 
+## Quick Start
+
+```bash
+git clone https://github.com/aarzamen/hailo-switcher.git
+cd hailo-switcher
+bun install
+bun run tauri dev
+```
+
+> **Note**: This was built for a specific Pi 5 + Hailo-8 setup. Paths default to `/home/ama/hailo/hailo-rpi5-examples/` but can be overridden via environment variables — see `.env.example`.
+
 ## Features
 
 - **13 AI pipelines** across 6 categories: Detection, Pose Estimation, Segmentation, Depth Estimation, Classification, and Face Detection
@@ -54,7 +65,7 @@ A desktop GUI for browsing and launching Hailo NPU AI demo pipelines on Raspberr
   ```
   sudo apt install hailo-all
   ```
-- [hailo-rpi5-examples](https://github.com/hailo-ai/hailo-rpi5-examples) installed at `/home/ama/hailo/hailo-rpi5-examples/` with its Python venv
+- [hailo-rpi5-examples](https://github.com/hailo-ai/hailo-rpi5-examples) installed with its Python venv (default path: `/home/ama/hailo/hailo-rpi5-examples/`, override with `HAILO_EXAMPLES_DIR` env var)
 - Post-process shared library symlinks (see [Setup](#post-process-libraries))
 
 ### Build Tools
@@ -159,6 +170,7 @@ hailo-switcher/
 ├── src-tauri/                    # Rust backend
 │   └── src/
 │       ├── lib.rs                # Tauri app setup
+│       ├── config.rs             # Env-var-based path configuration
 │       ├── process_manager.rs    # Async process spawn/stream/kill
 │       └── commands/
 │           ├── pipeline.rs       # start/stop/status commands
