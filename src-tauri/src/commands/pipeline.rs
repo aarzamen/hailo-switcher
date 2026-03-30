@@ -44,6 +44,11 @@ pub async fn start_pipeline(
         },
     );
 
+    // Validate source paths before proceeding
+    if let Some(ref src) = source {
+        src.validate()?;
+    }
+
     let manager = state.inner().clone();
 
     match pipeline_type.as_str() {

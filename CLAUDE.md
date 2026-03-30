@@ -53,4 +53,4 @@ This rule is non-negotiable. Do not ship UI without Playwright proof.
 - Pipelines open their own X11/Wayland windows for video output (GStreamer handles display)
 - `WEBKIT_DISABLE_DMABUF_RENDERER=1` may be needed for WebKitGTK on some Pi configs
 - NPU needs ~2 second cooldown between pipeline switches
-- rpicam-apps pipelines ONLY work with Pi Camera Module (CSI), not USB
+- rpicam-apps pipelines require Pi Camera Module (CSI) — other sources work with Python pipelines only

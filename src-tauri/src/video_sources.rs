@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value")]
@@ -27,7 +28,38 @@ pub struct AvailableSource {
     pub available: bool,
 }
 
+/// Validate a device path (must start with /dev/).
+fn validate_device_path(path: &str) -> Result<&str, String> {
+    if !path.starts_with("/dev/") {
+        return Err(format!("Invalid device path: {}", path));
+    }
+    if path.contains("..") || path.contains('\0') {
+        return Err(format!("Device path contains invalid characters: {}", path));
+    }
+    Ok(path)
+}
+
+/// Validate a file path (must be absolute, no null bytes).
+fn validate_file_path(path: &str) -> Result<&str, String> {
+    if path.contains('\0') {
+        return Err("File path contains null bytes".to_string());
+    }
+    if !Path::new(path).is_absolute() {
+        return Err(format!("File path must be absolute: {}", path));
+    }
+    Ok(path)
+}
+
 impl VideoSource {
+    /// Validate the source paths. Returns Err if paths are invalid.
+    pub fn validate(&self) -> Result<(), String> {
+        match self {
+            VideoSource::Device(path) => { validate_device_path(path)?; Ok(()) }
+            VideoSource::File(path) => { validate_file_path(path)?; Ok(()) }
+            VideoSource::Screen(_) | VideoSource::Demo => Ok(()),
+        }
+    }
+
     /// Convert to the `--input` argument for hailo-rpi5-examples Python pipelines.
     /// Returns None for Demo (pipeline uses its built-in default).
     pub fn to_input_arg(&self) -> Option<String> {

@@ -10,6 +10,8 @@
     "opener:default",
     "dialog:default",
     "dialog:allow-open",
-    "log:default"
+    "log:default",
+    "core:app:default",
+    "core:window:default"
   ]
 }

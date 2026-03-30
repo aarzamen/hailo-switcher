@@ -97,7 +97,7 @@ pub fn spawn_pipeline(
 
     let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn: {}", e))?;
 
-    let pid = child.id().unwrap_or(0);
+    let pid = child.id().ok_or("Failed to get child process ID")?;
 
     {
         let mut mgr = manager.lock().map_err(|e| e.to_string())?;

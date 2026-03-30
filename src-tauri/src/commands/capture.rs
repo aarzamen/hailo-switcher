@@ -65,7 +65,7 @@ pub async fn start_recording(
         .spawn()
         .map_err(|e| format!("Failed to start wf-recorder: {}", e))?;
 
-    let pid = child.id().unwrap_or(0);
+    let pid = child.id().ok_or("Failed to get recorder process ID")?;
     rec.pid = Some(pid);
     rec.save_path = Some(save_path);
 

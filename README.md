@@ -18,11 +18,12 @@ bun run tauri dev
 ## Features
 
 - **13 AI pipelines** across 6 categories: Detection, Pose Estimation, Segmentation, Depth Estimation, Classification, and Face Detection
-- **Multiple input sources**: Default demo video, USB webcam, custom video files, Pi Camera Module
-- **Live log streaming** from pipeline stdout/stderr
-- **Process management**: Start, stop, and switch between pipelines with automatic NPU resource cleanup
+- **Unified video source picker**: Auto-detects USB cameras, Pi Camera Module, screen capture (X11/Wayland), demo video, and custom video files — any source works with any pipeline
+- **Screen region capture**: Full screen or custom region selection with presets (Left Half, Right Half, etc.)
+- **Live log streaming** from pipeline stdout/stderr with FPS extraction
+- **Process management**: Start, stop, and switch between pipelines with automatic NPU resource cleanup (2s cooldown)
 - **Dark Galaxy Ultra theme**: Sci-fi command console UI with cyan accents and dot-grid starfield background
-- **Webcam auto-detection**: Discovers USB cameras via v4l2
+- **Playwright-verified UI**: Every interactive element tested for ARM64 WebKitGTK compatibility
 
 ## Supported Pipelines
 
@@ -48,6 +49,21 @@ bun run tauri dev
 | Pose Estimation | YOLOv8-pose | 17-point pose estimation |
 | Classification | ResNet50 | Image classification |
 | Face Detection | SCRFD | Face detection |
+
+## Video Sources
+
+The app auto-detects all available video sources on startup:
+
+| Source | Detection Method | Notes |
+|--------|-----------------|-------|
+| USB Cameras | `v4l2-ctl --list-devices` | Shows device name, filters non-camera devices |
+| Pi Camera | `libcamera-hello --list-cameras` | CSI-connected camera modules |
+| Full Screen | Always available | X11 (`ximagesrc`) or Wayland (`pipewiresrc`) |
+| Screen Region | Always available | Custom x/y/width/height or presets |
+| Demo Video | Always available | Built-in `example.mp4` from hailo-rpi5-examples |
+| Video File | Always available | User picks `.mp4`, `.avi`, `.mkv`, `.mov`, `.webm` |
+
+All sources resolve to a GStreamer source element via the `VideoSource` enum in the Rust backend.
 
 ## Prerequisites
 
@@ -125,6 +141,16 @@ bun run tauri dev
 
 This starts the Vite dev server with hot reload and compiles the Rust backend in debug mode.
 
+### Testing
+
+```bash
+# Button audit — verifies every clickable element responds to Playwright clicks
+bunx tsx tests/button-audit.ts
+
+# Visual verification — screenshot walkthrough of all UI features
+bun run verify
+```
+
 ## Build
 
 ```bash
@@ -158,29 +184,49 @@ hailo-switcher/
 ├── src/                          # React + TypeScript frontend
 │   ├── App.tsx                   # Main layout (sidebar + content + footer)
 │   ├── themes/                   # CSS theme system (Dark Galaxy Ultra)
-│   ├── stores/pipelineStore.ts   # Zustand state management
+│   ├── stores/
+│   │   ├── pipelineStore.ts      # Pipeline state, source selection, IPC
+│   │   └── captureStore.ts       # Screenshot/recording state
+│   ├── types/pipeline.ts         # VideoSource, AvailableSource, etc.
 │   ├── data/pipelines.ts         # Pipeline definitions (13 entries)
 │   └── components/
 │       ├── Sidebar.tsx           # Config-driven navigation
 │       ├── pipelines/            # Pipeline grid, cards, detail panel
-│       ├── input/                # Input source selector
+│       ├── input/
+│       │   ├── InputSourceSelector.tsx  # Unified source picker
+│       │   └── ScreenRegionSelector.tsx # Screen capture region config
 │       ├── logs/                 # Live log viewer
-│       ├── settings/             # Theme selector, about
-│       └── footer/               # Status bar with run/stop
+│       ├── settings/             # Theme selector, Hailo status
+│       └── footer/               # Status bar, capture, run/stop
 ├── src-tauri/                    # Rust backend
 │   └── src/
-│       ├── lib.rs                # Tauri app setup
+│       ├── lib.rs                # Tauri app setup, command registration
 │       ├── config.rs             # Env-var-based path configuration
+│       ├── video_sources.rs      # VideoSource enum, GStreamer resolution
 │       ├── process_manager.rs    # Async process spawn/stream/kill
 │       └── commands/
 │           ├── pipeline.rs       # start/stop/status commands
-│           └── system.rs         # device detection, hailo status
+│           ├── system.rs         # detect_sources, device/hailo detection
+│           └── capture.rs        # screenshot, recording commands
+└── tests/
+    ├── button-audit.ts           # Playwright click-test of all UI elements
+    └── visual-verify.ts          # Screenshot verification walkthrough
 ```
 
 ### Frontend-Backend Communication
 
-- **Tauri commands** (frontend -> backend): `invoke("start_pipeline", ...)`, `invoke("stop_pipeline")`, `invoke("list_video_devices")`
+- **Tauri commands** (frontend -> backend): `invoke("start_pipeline", ...)`, `invoke("stop_pipeline")`, `invoke("detect_sources")`, `invoke("list_video_devices")`
 - **Tauri events** (backend -> frontend): `pipeline-log` (stdout/stderr lines), `pipeline-status` (idle/running/error)
+
+### Video Source Resolution
+
+Every video source resolves to a single thing: a GStreamer source description or a device path.
+
+```
+User selects source → VideoSource enum → to_input_arg() → --input flag → Python/rpicam pipeline
+```
+
+The `VideoSource` enum (`Device`, `File`, `Screen`, `Demo`) handles all source types uniformly. The frontend doesn't need to know about GStreamer plumbing.
 
 ### Process Management
 
@@ -198,6 +244,7 @@ hailo-switcher/
 - **Zustand** - State management
 - **Vite** - Frontend bundler
 - **Tokio** - Async Rust runtime for process management
+- **Playwright** - UI testing and verification
 
 ## Theme System
 
