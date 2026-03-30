@@ -1,6 +1,7 @@
 mod commands;
 pub mod config;
 mod process_manager;
+pub mod video_sources;
 
 use std::sync::{Arc, Mutex};
 use process_manager::ProcessManager;
@@ -34,6 +35,7 @@ pub fn run() {
             commands::pipeline::stop_pipeline,
             commands::pipeline::get_pipeline_status,
             commands::system::list_video_devices,
+            commands::system::detect_sources,
             commands::system::check_hailo_status,
             commands::capture::take_screenshot,
             commands::capture::start_recording,

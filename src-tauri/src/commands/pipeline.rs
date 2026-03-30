@@ -1,5 +1,6 @@
 use crate::config::Config;
 use crate::process_manager::{self, StatusPayload};
+use crate::video_sources::VideoSource;
 use crate::SharedProcessManager;
 use tauri::{AppHandle, Emitter, State};
 
@@ -9,7 +10,7 @@ pub async fn start_pipeline(
     pipeline_type: String,
     script: Option<String>,
     json_config: Option<String>,
-    input_source: Option<String>,
+    source: Option<VideoSource>,
     state: State<'_, SharedProcessManager>,
     cfg: State<'_, Config>,
 ) -> Result<(), String> {
@@ -52,9 +53,11 @@ pub async fn start_pipeline(
                 format!("basic_pipelines/{}", script),
                 "--show-fps".to_string(),
             ];
-            if let Some(ref input) = input_source {
-                args.push("--input".to_string());
-                args.push(input.clone());
+            if let Some(ref src) = source {
+                if let Some(input_arg) = src.to_input_arg() {
+                    args.push("--input".to_string());
+                    args.push(input_arg);
+                }
             }
 
             let env_vars = vec![
