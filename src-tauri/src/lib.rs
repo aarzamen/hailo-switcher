@@ -41,6 +41,7 @@ pub fn run() {
             commands::system::detect_sources,
             commands::system::check_hailo_status,
             commands::system::check_v4l2loopback,
+            commands::system::resolve_stream_url,
             commands::capture::take_screenshot,
             commands::capture::start_recording,
             commands::capture::stop_recording,
