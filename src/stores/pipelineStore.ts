@@ -4,8 +4,10 @@ import { listen } from "@tauri-apps/api/event";
 import type {
   PipelineDefinition,
   PipelineStatus,
-  InputSourceType,
   LogEntry,
+  VideoSource,
+  AvailableSource,
+  ScreenRegion,
 } from "@/types/pipeline";
 
 const MAX_LOG_LINES = 2000;
@@ -14,59 +16,99 @@ const FPS_REGEX = /FPS:\s*([\d.]+)/;
 interface PipelineState {
   activePipeline: PipelineDefinition | null;
   pipelineStatus: PipelineStatus;
-  inputSource: InputSourceType;
-  inputFilePath: string;
+  selectedSourceId: string | null;
+  selectedFilePath: string;
+  screenRegion: ScreenRegion;
   logs: LogEntry[];
-  availableDevices: string[];
+  availableSources: AvailableSource[];
   errorMessage: string | null;
   currentFps: string | null;
   listenersInitialized: boolean;
 
   selectPipeline: (pipeline: PipelineDefinition | null) => void;
-  setInputSource: (source: InputSourceType) => void;
-  setInputFilePath: (path: string) => void;
+  selectSource: (sourceId: string) => void;
+  setFilePath: (path: string) => void;
+  setScreenRegion: (region: ScreenRegion) => void;
   startPipeline: () => Promise<void>;
   stopPipeline: () => Promise<void>;
   appendLog: (entry: LogEntry) => void;
   clearLogs: () => void;
-  refreshDevices: () => Promise<void>;
+  refreshSources: () => Promise<void>;
   initListeners: () => Promise<void>;
+}
+
+/** Build the VideoSource object to send to the Rust backend */
+function buildVideoSource(
+  sourceId: string,
+  sources: AvailableSource[],
+  filePath: string,
+  screenRegion: ScreenRegion,
+): VideoSource | null {
+  const src = sources.find((s) => s.id === sourceId);
+  if (!src) return null;
+
+  if (src.id === "demo") {
+    return { type: "Demo" };
+  }
+  if (src.id === "file") {
+    return filePath ? { type: "File", value: filePath } : null;
+  }
+  if (src.id === "screen-full") {
+    return {
+      type: "Screen",
+      value: { x: 0, y: 0, width: 1920, height: 1080, full_screen: true },
+    };
+  }
+  if (src.id === "screen-region") {
+    return { type: "Screen", value: screenRegion };
+  }
+  // Device — use device_path if available, else Pi Camera
+  if (src.device_path) {
+    return { type: "Device", value: src.device_path };
+  }
+  if (src.id === "picam-0") {
+    return { type: "Device", value: "/dev/video0" };
+  }
+  return null;
 }
 
 export const usePipelineStore = create<PipelineState>((set, get) => ({
   activePipeline: null,
   pipelineStatus: "idle",
-  inputSource: "default",
-  inputFilePath: "",
+  selectedSourceId: "demo",
+  selectedFilePath: "",
+  screenRegion: { x: 0, y: 0, width: 640, height: 480, full_screen: false },
   logs: [],
-  availableDevices: [],
+  availableSources: [],
   errorMessage: null,
   currentFps: null,
   listenersInitialized: false,
 
   selectPipeline: (pipeline) => set({ activePipeline: pipeline }),
 
-  setInputSource: (source) => set({ inputSource: source }),
+  selectSource: (sourceId) => set({ selectedSourceId: sourceId }),
 
-  setInputFilePath: (path) => set({ inputFilePath: path }),
+  setFilePath: (path) => set({ selectedFilePath: path }),
+
+  setScreenRegion: (region) => set({ screenRegion: region }),
 
   startPipeline: async () => {
-    const { activePipeline, inputSource, inputFilePath } = get();
+    const { activePipeline, selectedSourceId, availableSources, selectedFilePath, screenRegion } =
+      get();
     if (!activePipeline) return;
 
     set({ pipelineStatus: "starting", errorMessage: null, logs: [], currentFps: null });
 
-    let inputArg: string | null = null;
-    if (inputSource === "usb") inputArg = "usb";
-    else if (inputSource === "rpi") inputArg = "rpi";
-    else if (inputSource === "file" && inputFilePath) inputArg = inputFilePath;
+    const source = selectedSourceId
+      ? buildVideoSource(selectedSourceId, availableSources, selectedFilePath, screenRegion)
+      : null;
 
     try {
       await invoke("start_pipeline", {
         pipelineType: activePipeline.type,
         script: activePipeline.script ?? null,
         jsonConfig: activePipeline.jsonConfig ?? null,
-        inputSource: inputArg,
+        source,
       });
     } catch (e) {
       set({
@@ -87,7 +129,6 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   appendLog: (entry) =>
     set((state) => {
-      // Parse FPS from stdout lines
       let fps = state.currentFps;
       if (entry.stream === "stdout") {
         const match = entry.line.match(FPS_REGEX);
@@ -105,12 +146,18 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   clearLogs: () => set({ logs: [], currentFps: null }),
 
-  refreshDevices: async () => {
+  refreshSources: async () => {
     try {
-      const devices = await invoke<string[]>("list_video_devices");
-      set({ availableDevices: devices });
+      const sources = await invoke<AvailableSource[]>("detect_sources");
+      set({ availableSources: sources });
     } catch {
-      set({ availableDevices: [] });
+      // Fallback: provide at least demo and file
+      set({
+        availableSources: [
+          { id: "demo", label: "Demo Video", source_type: "demo", device_path: null, available: true },
+          { id: "file", label: "Video File", source_type: "file", device_path: null, available: true },
+        ],
+      });
     }
   },
 
@@ -126,7 +173,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           stream: event.payload.stream,
           timestamp: Date.now(),
         });
-      }
+      },
     );
 
     listen<{ status: PipelineStatus; error?: string }>(
@@ -136,12 +183,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           pipelineStatus: event.payload.status,
           errorMessage: event.payload.error ?? null,
         };
-        // Clear FPS when pipeline stops
         if (event.payload.status === "idle" || event.payload.status === "error") {
           updates.currentFps = null;
         }
         set(updates);
-      }
+      },
     );
   },
 }));

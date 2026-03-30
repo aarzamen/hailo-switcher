@@ -9,7 +9,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "python",
     model: "YOLOv8m",
     script: "detection.py",
-    supportedInputs: ["default", "usb", "file", "rpi"],
     category: "detection",
   },
   {
@@ -19,7 +18,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "python",
     model: "YOLOv6n",
     script: "detection_simple.py",
-    supportedInputs: ["default", "usb", "file", "rpi"],
     category: "detection",
   },
   {
@@ -29,7 +27,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "python",
     model: "YOLOv8m-pose",
     script: "pose_estimation.py",
-    supportedInputs: ["default", "usb", "file", "rpi"],
     category: "pose",
   },
   {
@@ -39,7 +36,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "python",
     model: "YOLOv5m-seg",
     script: "instance_segmentation.py",
-    supportedInputs: ["default", "usb", "file", "rpi"],
     category: "segmentation",
   },
   {
@@ -49,7 +45,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "python",
     model: "SCDepthV3",
     script: "depth.py",
-    supportedInputs: ["default", "usb", "file", "rpi"],
     category: "depth",
   },
 
@@ -61,7 +56,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOv8",
     jsonConfig: "hailo_yolov8_inference.json",
-    supportedInputs: ["rpi"],
     category: "detection",
   },
   {
@@ -71,7 +65,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOv6",
     jsonConfig: "hailo_yolov6_inference.json",
-    supportedInputs: ["rpi"],
     category: "detection",
   },
   {
@@ -81,7 +74,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOv5",
     jsonConfig: "hailo_yolov5_personface.json",
-    supportedInputs: ["rpi"],
     category: "face",
   },
   {
@@ -91,7 +83,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOX-S",
     jsonConfig: "hailo_yolox_inference.json",
-    supportedInputs: ["rpi"],
     category: "detection",
   },
   {
@@ -101,7 +92,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOv5-seg",
     jsonConfig: "hailo_yolov5_segmentation.json",
-    supportedInputs: ["rpi"],
     category: "segmentation",
   },
   {
@@ -111,7 +101,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "YOLOv8-pose",
     jsonConfig: "hailo_yolov8_pose.json",
-    supportedInputs: ["rpi"],
     category: "pose",
   },
   {
@@ -121,7 +110,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "ResNet50",
     jsonConfig: "hailo_classifier.json",
-    supportedInputs: ["rpi"],
     category: "classification",
   },
   {
@@ -131,7 +119,6 @@ export const PIPELINES: PipelineDefinition[] = [
     type: "rpicam",
     model: "SCRFD",
     jsonConfig: "hailo_scrfd.json",
-    supportedInputs: ["rpi"],
     category: "face",
   },
 ];

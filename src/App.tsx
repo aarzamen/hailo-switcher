@@ -8,12 +8,12 @@ import { usePipelineStore } from "./stores/pipelineStore";
 const App: React.FC = () => {
   const [activeSection, setActiveSection] = useState<SidebarSection>("pipelines");
   const initListeners = usePipelineStore((s) => s.initListeners);
-  const refreshDevices = usePipelineStore((s) => s.refreshDevices);
+  const refreshSources = usePipelineStore((s) => s.refreshSources);
 
   useEffect(() => {
     initListeners();
-    refreshDevices();
-  }, [initListeners, refreshDevices]);
+    refreshSources();
+  }, [initListeners, refreshSources]);
 
   const ActiveComponent = SECTIONS_CONFIG[activeSection].component;
 

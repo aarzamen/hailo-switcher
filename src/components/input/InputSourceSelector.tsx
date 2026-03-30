@@ -1,49 +1,51 @@
-import React from "react";
-import { Video, MonitorPlay, FileVideo, Camera, RefreshCw } from "lucide-react";
+import React, { useState } from "react";
+import {
+  Video,
+  Camera,
+  Monitor,
+  Crop,
+  Film,
+  FileVideo,
+  RefreshCw,
+  Loader2,
+} from "lucide-react";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { SettingsGroup } from "@/components/ui/SettingsGroup";
-import type { InputSourceType } from "@/types/pipeline";
+import { ScreenRegionSelector } from "./ScreenRegionSelector";
+import type { AvailableSource } from "@/types/pipeline";
 
-const INPUT_OPTIONS: {
-  type: InputSourceType;
-  label: string;
-  description: string;
-  icon: React.ComponentType<{ size?: number | string; className?: string }>;
-}[] = [
-  {
-    type: "default",
-    label: "Default Video",
-    description: "Built-in example.mp4 demo video",
-    icon: FileVideo,
-  },
-  {
-    type: "usb",
-    label: "USB Webcam",
-    description: "Auto-detect connected USB camera",
-    icon: Video,
-  },
-  {
-    type: "file",
-    label: "Video File",
-    description: "Choose a custom video file",
-    icon: MonitorPlay,
-  },
-  {
-    type: "rpi",
-    label: "Pi Camera",
-    description: "Raspberry Pi Camera Module (CSI)",
-    icon: Camera,
-  },
-];
+const SOURCE_ICONS: Record<string, React.ComponentType<{ size?: number | string; className?: string }>> = {
+  "demo": Film,
+  "file": FileVideo,
+  "screen-full": Monitor,
+  "screen-region": Crop,
+  "picam-0": Camera,
+};
+
+function getIcon(source: AvailableSource) {
+  if (SOURCE_ICONS[source.id]) return SOURCE_ICONS[source.id];
+  if (source.source_type === "device") return Video;
+  if (source.source_type === "screen") return Monitor;
+  return Film;
+}
 
 export const InputSourceSelector: React.FC = () => {
-  const inputSource = usePipelineStore((s) => s.inputSource);
-  const inputFilePath = usePipelineStore((s) => s.inputFilePath);
-  const availableDevices = usePipelineStore((s) => s.availableDevices);
-  const activePipeline = usePipelineStore((s) => s.activePipeline);
-  const setInputSource = usePipelineStore((s) => s.setInputSource);
-  const setInputFilePath = usePipelineStore((s) => s.setInputFilePath);
-  const refreshDevices = usePipelineStore((s) => s.refreshDevices);
+  const selectedSourceId = usePipelineStore((s) => s.selectedSourceId);
+  const selectedFilePath = usePipelineStore((s) => s.selectedFilePath);
+  const availableSources = usePipelineStore((s) => s.availableSources);
+  const selectSource = usePipelineStore((s) => s.selectSource);
+  const setFilePath = usePipelineStore((s) => s.setFilePath);
+  const refreshSources = usePipelineStore((s) => s.refreshSources);
+  const screenRegion = usePipelineStore((s) => s.screenRegion);
+  const setScreenRegion = usePipelineStore((s) => s.setScreenRegion);
+
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshSources();
+    setIsRefreshing(false);
+  };
 
   const handleFileSelect = async () => {
     try {
@@ -53,7 +55,7 @@ export const InputSourceSelector: React.FC = () => {
         filters: [{ name: "Video", extensions: ["mp4", "avi", "mkv", "mov", "webm"] }],
       });
       if (selected) {
-        setInputFilePath(selected as string);
+        setFilePath(selected as string);
       }
     } catch {
       // Dialog cancelled or unavailable
@@ -62,52 +64,78 @@ export const InputSourceSelector: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <SettingsGroup title="Input Source">
+      <SettingsGroup
+        title="Video Source"
+        description="Select an input source for the pipeline"
+      >
         <div className="p-2 space-y-1">
-          {INPUT_OPTIONS.map((opt) => {
-            const Icon = opt.icon;
-            const isActive = inputSource === opt.type;
-            const isSupported = !activePipeline || activePipeline.supportedInputs.includes(opt.type);
+          {availableSources.map((source) => {
+            const Icon = getIcon(source);
+            const isActive = selectedSourceId === source.id;
+            const isAvailable = source.available;
 
             return (
-              <div
-                key={opt.type}
-                onClick={() => isSupported && setInputSource(opt.type)}
-                className={`flex items-center gap-3 p-3 rounded-lg transition-all border ${
-                  !isSupported
+              <button
+                key={source.id}
+                onClick={() => isAvailable && selectSource(source.id)}
+                disabled={!isAvailable}
+                className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all border text-left cursor-pointer ${
+                  !isAvailable
                     ? "opacity-40 cursor-not-allowed border-transparent"
                     : isActive
-                      ? "border-logo-primary bg-accent-glow cursor-pointer"
-                      : "border-transparent hover:bg-mid-gray/10 cursor-pointer"
+                      ? "border-logo-primary bg-accent-glow"
+                      : "border-transparent hover:bg-mid-gray/10"
                 }`}
               >
                 <Icon
                   size={22}
-                  className={isActive && isSupported ? "text-logo-primary" : "text-mid-gray"}
+                  className={isActive && isAvailable ? "text-logo-primary" : "text-mid-gray"}
                 />
-                <div>
-                  <h3 className="text-sm font-medium">
-                    {opt.label}
-                    {!isSupported && (
-                      <span className="text-[10px] text-mid-gray ml-2">(not supported)</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-sm font-medium truncate">
+                    {source.label}
+                    {!isAvailable && (
+                      <span className="text-[10px] text-mid-gray ml-2">(not detected)</span>
                     )}
                   </h3>
-                  <p className="text-xs text-mid-gray">{opt.description}</p>
+                  <p className="text-xs text-mid-gray">{source.source_type}</p>
                 </div>
-              </div>
+                {/* Availability dot */}
+                <span
+                  className={`inline-block w-2 h-2 rounded-full shrink-0 ${
+                    isAvailable ? "bg-green-400" : "bg-mid-gray/40"
+                  }`}
+                />
+              </button>
             );
           })}
         </div>
+
+        {/* Refresh button */}
+        <div className="px-3 pb-3 flex justify-end">
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[32px] min-w-[44px] rounded border border-logo-primary/40 bg-logo-primary/10 text-xs text-logo-primary hover:bg-logo-primary/20 active:bg-logo-primary/30 transition-colors cursor-pointer pointer-events-auto"
+          >
+            {isRefreshing ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <RefreshCw size={14} />
+            )}
+            Refresh
+          </button>
+        </div>
       </SettingsGroup>
 
-      {/* File path input */}
-      {inputSource === "file" && (
+      {/* File path input — shown when "file" source is selected */}
+      {selectedSourceId === "file" && (
         <SettingsGroup title="Video File">
           <div className="p-3 flex items-center gap-2">
             <input
               type="text"
-              value={inputFilePath}
-              onChange={(e) => setInputFilePath(e.target.value)}
+              value={selectedFilePath}
+              onChange={(e) => setFilePath(e.target.value)}
               placeholder="/path/to/video.mp4"
               className="flex-1 bg-mid-gray/10 border border-mid-gray/30 rounded px-2 py-1.5 text-sm text-text placeholder:text-mid-gray/50 focus:border-logo-primary focus:outline-none"
             />
@@ -121,39 +149,9 @@ export const InputSourceSelector: React.FC = () => {
         </SettingsGroup>
       )}
 
-      {/* USB devices */}
-      {inputSource === "usb" && (
-        <SettingsGroup title="Detected Cameras">
-          <div className="p-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-mid-gray">
-                {availableDevices.length} device(s) found
-              </span>
-              <button
-                onClick={refreshDevices}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[32px] min-w-[44px] rounded border border-logo-primary/40 bg-logo-primary/10 text-xs text-logo-primary hover:bg-logo-primary/20 active:bg-logo-primary/30 transition-colors cursor-pointer pointer-events-auto"
-              >
-                <RefreshCw size={14} /> Refresh
-              </button>
-            </div>
-            {availableDevices.length > 0 ? (
-              <div className="space-y-1">
-                {availableDevices.map((dev) => (
-                  <div
-                    key={dev}
-                    className="text-xs font-mono bg-mid-gray/10 rounded px-2 py-1"
-                  >
-                    {dev}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-mid-gray">
-                No USB cameras detected. Plug one in and click Refresh.
-              </p>
-            )}
-          </div>
-        </SettingsGroup>
+      {/* Screen region selector — shown when "screen-region" is selected */}
+      {selectedSourceId === "screen-region" && (
+        <ScreenRegionSelector region={screenRegion} onChange={setScreenRegion} />
       )}
     </div>
   );

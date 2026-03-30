@@ -4,13 +4,15 @@ import { usePipelineStore } from "@/stores/pipelineStore";
 export const PipelineDetail: React.FC = () => {
   const activePipeline = usePipelineStore((s) => s.activePipeline);
   const pipelineStatus = usePipelineStore((s) => s.pipelineStatus);
-  const inputSource = usePipelineStore((s) => s.inputSource);
+  const selectedSourceId = usePipelineStore((s) => s.selectedSourceId);
+  const availableSources = usePipelineStore((s) => s.availableSources);
   const errorMessage = usePipelineStore((s) => s.errorMessage);
   const logs = usePipelineStore((s) => s.logs);
 
   if (!activePipeline) return null;
 
-  const inputCompatible = activePipeline.supportedInputs.includes(inputSource);
+  const selectedSource = availableSources.find((s) => s.id === selectedSourceId);
+  const sourceLabel = selectedSource?.label ?? selectedSourceId ?? "None";
 
   return (
     <div className="settings-card bg-background-card border border-surface-border rounded-lg p-4 space-y-3">
@@ -20,20 +22,9 @@ export const PipelineDetail: React.FC = () => {
         <p className="text-xs text-mid-gray">{activePipeline.description}</p>
         <p className="text-xs text-mid-gray mt-1">
           Model: <span className="text-logo-primary font-medium">{activePipeline.model}</span>
-          {" | "}Input: <span className="font-medium">{inputSource}</span>
+          {" | "}Source: <span className="font-medium">{sourceLabel}</span>
         </p>
       </div>
-
-      {/* Input warning */}
-      {!inputCompatible && pipelineStatus !== "running" && (
-        <p className="text-xs text-red-400">
-          This pipeline requires{" "}
-          <span className="font-medium">
-            {activePipeline.supportedInputs.join(", ")}
-          </span>{" "}
-          input. Switch input source in the Input tab.
-        </p>
-      )}
 
       {/* Status */}
       <div className="flex items-center gap-2 text-xs">
