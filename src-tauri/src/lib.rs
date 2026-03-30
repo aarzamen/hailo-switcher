@@ -40,6 +40,7 @@ pub fn run() {
             commands::system::list_video_devices,
             commands::system::detect_sources,
             commands::system::check_hailo_status,
+            commands::system::check_v4l2loopback,
             commands::capture::take_screenshot,
             commands::capture::start_recording,
             commands::capture::stop_recording,
