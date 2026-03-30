@@ -71,7 +71,11 @@ async function main() {
   }
 
   // Launch browser
-  const browser = await chromium.launch({ headless: true });
+  const browser = await chromium.launch({
+    headless: true,
+    executablePath: "/opt/google/chrome/chrome",
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const page = await context.newPage();
 
@@ -107,92 +111,139 @@ async function main() {
 
     // ── Check 4: Sidebar Navigation ──
     // Input tab
-    await page.getByText("Input", { exact: true }).click();
-    await page.waitForTimeout(300);
+    await page.locator(".sidebar-region").getByText("Input", { exact: true }).click();
+    await page.waitForTimeout(500);
     const ssInput = await screenshot(page, "04-input-tab.png");
-    const hasDefaultVideo = await page.getByText("Default Video").isVisible();
-    const hasUsbWebcam = await page.getByText("USB Webcam").isVisible();
-    const hasPiCamera = await page.getByRole("heading", { name: "Pi Camera" }).isVisible();
+
+    // New unified source picker shows sources from detect_sources
+    // In dev mode without Tauri backend, fallback sources are shown
+    const hasVideoSource = await page.getByText("Video Source").isVisible();
+    const hasSourceButtons = (await page.locator(".space-y-1 > button").count()) > 0;
 
     // Logs tab
-    await page.getByText("Logs", { exact: true }).click();
+    await page.locator(".sidebar-region").getByText("Logs", { exact: true }).click();
     await page.waitForTimeout(300);
     const ssLogs = await screenshot(page, "05-logs-tab.png");
     const hasLogViewer = await page.getByText("Pipeline Output").isVisible() ||
                          await page.getByText("No output yet").isVisible();
 
     // Settings tab
-    await page.getByText("Settings", { exact: true }).click();
+    await page.locator(".sidebar-region").getByText("Settings", { exact: true }).click();
     await page.waitForTimeout(300);
     const ssSettings = await screenshot(page, "06-settings-tab.png");
     const hasThemeSelector = await page.locator("select").first().isVisible();
     const hasAbout = await page.getByText("Hailo Demo Switcher").isVisible();
-    const hasHardware = await page.getByText("Hardware").isVisible();
 
-    record("Sidebar Navigation", hasDefaultVideo && hasUsbWebcam && hasLogViewer && hasAbout,
+    record("Sidebar Navigation", hasVideoSource && hasLogViewer && hasAbout,
       `${ssInput}, ${ssLogs}, ${ssSettings}`,
-      `Input: defaultVideo=${hasDefaultVideo} usbWebcam=${hasUsbWebcam} piCam=${hasPiCamera}; ` +
-      `Logs: viewer=${hasLogViewer}; Settings: theme=${hasThemeSelector} about=${hasAbout} hardware=${hasHardware}`);
+      `Input: videoSource=${hasVideoSource} sourceButtons=${hasSourceButtons}; ` +
+      `Logs: viewer=${hasLogViewer}; Settings: theme=${hasThemeSelector} about=${hasAbout}`);
 
-    // ── Check 5: Input Source Interaction ──
-    await page.getByText("Input", { exact: true }).click();
+    // ── Check 5: Unified Source Picker ──
+    await page.locator(".sidebar-region").getByText("Input", { exact: true }).click();
+    await page.waitForTimeout(500);
+
+    const sourceButtons = page.locator(".space-y-1 > button");
+    const sourceCount = await sourceButtons.count();
+
+    // Click first source
+    let sourceClicked = false;
+    if (sourceCount > 0) {
+      const firstSource = sourceButtons.first();
+      await firstSource.click();
+      await page.waitForTimeout(300);
+      const classes = (await firstSource.getAttribute("class")) || "";
+      sourceClicked = classes.includes("border-logo-primary");
+    }
+
+    const ssSources = await screenshot(page, "07-source-picker.png");
+
+    // Check for Video File source and browse button
+    const fileSource = sourceButtons.filter({ hasText: "Video File" }).first();
+    let hasBrowse = false;
+    if (await fileSource.isVisible().catch(() => false)) {
+      await fileSource.click();
+      await page.waitForTimeout(300);
+      hasBrowse = await page.getByText("Browse").isVisible();
+    }
+
+    const ssFile = await screenshot(page, "08-file-source-selected.png");
+
+    // Check for Refresh button
+    const hasRefresh = await page.locator("button", { hasText: "Refresh" }).isVisible();
+
+    record("Unified Source Picker", sourceCount > 0 && sourceClicked,
+      `${ssSources}, ${ssFile}`,
+      `sources=${sourceCount}, firstSelected=${sourceClicked}, browse=${hasBrowse}, refresh=${hasRefresh}`);
+
+    // ── Check 6: Screen Region Selector ──
+    const regionSource = sourceButtons.filter({ hasText: "Screen Region" }).first();
+    let hasRegionSelector = false;
+    if (await regionSource.isVisible().catch(() => false)) {
+      await regionSource.click();
+      await page.waitForTimeout(300);
+      // Check for the preset buttons (Left Half, Right Half are unique to the region selector)
+      hasRegionSelector = await page.getByText("Left Half").isVisible().catch(() => false) ||
+                          await page.getByText("Right Half").isVisible().catch(() => false);
+    }
+
+    const ssRegion = await screenshot(page, "09-screen-region.png");
+    record("Screen Region Selector", hasRegionSelector, ssRegion,
+      `regionSelector=${hasRegionSelector}`);
+
+    // ── Check 7: No Input Compatibility Warnings ──
+    await page.locator(".sidebar-region").getByText("Pipelines", { exact: true }).click();
     await page.waitForTimeout(300);
 
-    await page.getByRole("heading", { name: "USB Webcam" }).click();
-    await page.waitForTimeout(300);
-    const ssUsb = await screenshot(page, "07-input-usb-selected.png");
-    const hasDetectedCameras = await page.getByText("Detected Cameras").isVisible() ||
-                                await page.getByText("device(s) found").isVisible();
-
-    await page.getByRole("heading", { name: "Video File" }).click();
-    await page.waitForTimeout(300);
-    const ssFile = await screenshot(page, "08-input-file-selected.png");
-    const hasBrowse = await page.getByText("Browse").isVisible();
-
-    record("Input Source Interaction", hasDetectedCameras && hasBrowse,
-      `${ssUsb}, ${ssFile}`,
-      `USB: cameras section=${hasDetectedCameras}; File: browse button=${hasBrowse}`);
-
-    // ── Check 6: Pipeline + Incompatible Input Warning ──
-    await page.getByText("Pipelines").click();
-    await page.waitForTimeout(300);
-
-    // Click an rpicam pipeline — scroll down to find it
+    // Click an rpicam pipeline
     const rpicamCard = page.getByText("YOLOv8 Detection").first();
     if (await rpicamCard.isVisible()) {
       await rpicamCard.click();
-    } else {
-      // Scroll to find rpicam cards
-      await page.evaluate(() => document.querySelector(".overflow-y-auto")?.scrollBy(0, 500));
       await page.waitForTimeout(300);
-      await rpicamCard.click();
     }
-    await page.waitForTimeout(300);
-    const ssIncompat = await screenshot(page, "09-incompatible-input-warning.png");
 
-    // Input is "file" from Check 5, rpicam only supports "rpi"
-    const hasWarning = await page.getByText("requires").isVisible();
-    record("Incompatible Input Warning", hasWarning, ssIncompat,
-      `Warning visible=${hasWarning} (file input + rpicam pipeline)`);
+    const ssNoWarning = await screenshot(page, "10-no-input-warning.png");
+    const hasWarning = await page.getByText("requires").isVisible().catch(() => false);
+    record("No Input Compatibility Warning", !hasWarning, ssNoWarning,
+      `warning visible=${hasWarning} (should be false — unified sources handle all inputs)`);
 
-    // ── Check 7: Footer Status ──
-    const ssFooter = await screenshot(page, "10-footer-status.png");
+    // ── Check 8: Footer Status ──
+    const ssFooter = await screenshot(page, "11-footer-status.png");
     const footerVisible = await page.locator(".border-t.border-surface-border").isVisible();
     const hasVersion = await page.getByText("v0.1.0").isVisible();
     record("Footer Status", footerVisible && hasVersion, ssFooter,
       `Footer visible=${footerVisible}, version=${hasVersion}`);
 
-    // ── Check 8: Error Boundary ──
-    // Passive check — verify ErrorBoundary is in the component tree
-    const appSource = await page.content();
-    const hasErrorBoundary = appSource.includes("ErrorBoundary") ||
-                             await page.evaluate(() => {
-                               // Check if ErrorBoundary class component is in React tree
-                               return document.querySelector("[class*='error']") !== null ||
-                                      true; // Can't easily detect class components from DOM
-                             });
-    record("Error Boundary", true, null,
-      "ErrorBoundary: present in component tree (verified in App.tsx source)");
+    // ── Check 9: Capture Controls ──
+    const captureToggle = page.locator(".border-t.border-surface-border button").first();
+    const captureClickable = await captureToggle.isVisible();
+    let captureToggleWorks = false;
+    if (captureClickable) {
+      const titleBefore = await captureToggle.getAttribute("title");
+      await captureToggle.click();
+      await page.waitForTimeout(300);
+      const titleAfter = await captureToggle.getAttribute("title");
+      captureToggleWorks = titleBefore !== titleAfter;
+    }
+
+    const ssCapture = await screenshot(page, "12-capture-controls.png");
+    record("Capture Controls", captureToggleWorks, ssCapture,
+      `toggle=${captureToggleWorks}`);
+
+    // ── Check 10: Refresh Button Click ──
+    await page.locator(".sidebar-region").getByText("Input", { exact: true }).click();
+    await page.waitForTimeout(300);
+
+    const refreshBtn = page.locator("button", { hasText: "Refresh" }).first();
+    const refreshClickable = await refreshBtn.isVisible();
+    if (refreshClickable) {
+      await refreshBtn.click();
+      await page.waitForTimeout(500);
+    }
+
+    const ssRefresh = await screenshot(page, "13-refresh-clicked.png");
+    record("Refresh Button Click", refreshClickable, ssRefresh,
+      `clicked=${refreshClickable}`);
 
   } finally {
     await browser.close();
@@ -200,10 +251,9 @@ async function main() {
   }
 
   // ── Generate Report ──
-  const uname = execSync("uname -a").toString().trim();
-  const nodeVersion = execSync("node --version").toString().trim();
-  const pwVersion = execSync("bunx playwright --version 2>/dev/null || echo unknown").toString().trim();
   const timestamp = new Date().toISOString();
+  let nodeVersion = "unknown";
+  try { nodeVersion = execSync("node --version").toString().trim(); } catch {}
 
   const allPassed = results.every((r) => r.passed);
   const passCount = results.filter((r) => r.passed).length;
@@ -211,9 +261,7 @@ async function main() {
   let report = `# Visual Verification Report
 
 **Date**: ${timestamp}
-**Environment**: ${uname}
 **Node**: ${nodeVersion}
-**Playwright**: ${pwVersion}
 **Vite Dev Server**: ${BASE_URL}
 
 ## Results

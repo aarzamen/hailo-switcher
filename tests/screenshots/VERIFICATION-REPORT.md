@@ -1,9 +1,7 @@
 # Visual Verification Report
 
-**Date**: 2026-03-28T07:53:20.412Z
-**Environment**: Linux raspberrypi 6.12.75+rpt-rpi-2712 #1 SMP PREEMPT Debian 1:6.12.75-1+rpt1 (2026-03-11) aarch64 GNU/Linux
-**Node**: v24.14.1
-**Playwright**: Version 1.58.2
+**Date**: 2026-03-30T02:58:41.923Z
+**Node**: v22.22.0
 **Vite Dev Server**: http://localhost:1420
 
 ## Results
@@ -13,13 +11,15 @@
 | 1 | Initial Load | ✅ PASS | 01-initial-load.png | Title="Hailo Switcher", sidebar=true, detection card=true |
 | 2 | Theme Applied | ✅ PASS | 02-theme-applied.png | HTML classes: "theme-dark-galaxy-ultra" |
 | 3 | Pipeline Selection | ✅ PASS | 03-pipeline-selected.png | Detail panel visible=true |
-| 4 | Sidebar Navigation | ✅ PASS | 04-input-tab.png, 05-logs-tab.png, 06-settings-tab.png | Input: defaultVideo=true usbWebcam=true piCam=true; Logs: viewer=true; Settings: theme=true about=true hardware=true |
-| 5 | Input Source Interaction | ✅ PASS | 07-input-usb-selected.png, 08-input-file-selected.png | USB: cameras section=true; File: browse button=true |
-| 6 | Incompatible Input Warning | ✅ PASS | 09-incompatible-input-warning.png | Warning visible=true (file input + rpicam pipeline) |
-| 7 | Footer Status | ✅ PASS | 10-footer-status.png | Footer visible=true, version=true |
-| 8 | Error Boundary | ✅ PASS | N/A | ErrorBoundary: present in component tree (verified in App.tsx source) |
+| 4 | Sidebar Navigation | ✅ PASS | 04-input-tab.png, 05-logs-tab.png, 06-settings-tab.png | Input: videoSource=true sourceButtons=true; Logs: viewer=true; Settings: theme=true about=true |
+| 5 | Unified Source Picker | ✅ PASS | 07-source-picker.png, 08-file-source-selected.png | sources=4, firstSelected=true, browse=true, refresh=true |
+| 6 | Screen Region Selector | ✅ PASS | 09-screen-region.png | regionSelector=true |
+| 7 | No Input Compatibility Warning | ✅ PASS | 10-no-input-warning.png | warning visible=false (should be false — unified sources handle all inputs) |
+| 8 | Footer Status | ✅ PASS | 11-footer-status.png | Footer visible=true, version=true |
+| 9 | Capture Controls | ✅ PASS | 12-capture-controls.png | toggle=true |
+| 10 | Refresh Button Click | ✅ PASS | 13-refresh-clicked.png | clicked=true |
 
 ## Summary
 
-**8/8 checks passed.**
+**10/10 checks passed.**
 All screenshots saved to `tests/screenshots/`.

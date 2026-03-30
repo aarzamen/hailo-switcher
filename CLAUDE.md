@@ -28,10 +28,26 @@
 - Config: All paths loaded from env vars with defaults in `src-tauri/src/config.rs`
 
 ## Testing
-- No test framework currently configured
+- Button audit: `bunx tsx tests/button-audit.ts` (Playwright click-test of every UI element)
+- Visual verification: `bun run verify` (Playwright screenshot walkthrough)
 - Manual testing: Start app, select pipeline, verify logs stream, stop pipeline
 - Verify Hailo detection: `hailortcli fw-control identify`
-- Visual verification: `bun run verify` (Playwright-based screenshot walkthrough)
+
+## Tauri UI Testing Rule (ARM64 WebKitGTK)
+
+WebKitGTK on ARM Linux has known issues with click event propagation,
+hover states, and small touch targets. EVERY interactive UI element
+must be Playwright-tested before a sprint is considered complete.
+
+If Playwright cannot click a button and observe a state change,
+the button is broken — regardless of whether it works in dev tools.
+
+Minimum test per element:
+1. Element is visible (not obscured, not zero-size)
+2. Click produces observable change (class toggle, new element, state update)
+3. Screenshot before and after for proof
+
+This rule is non-negotiable. Do not ship UI without Playwright proof.
 
 ## Known Constraints
 - Pipelines open their own X11/Wayland windows for video output (GStreamer handles display)

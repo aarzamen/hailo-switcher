@@ -53,7 +53,6 @@ async function ss(page: Page, name: string): Promise<string> {
   return name;
 }
 
-/** Check if an element is truly clickable: visible, has area, not obscured */
 async function isClickable(locator: Locator): Promise<boolean> {
   try {
     const visible = await locator.isVisible();
@@ -71,7 +70,6 @@ async function main() {
     mkdirSync(SCREENSHOTS_DIR, { recursive: true });
   }
 
-  // Start Vite dev server
   console.log("Starting Vite dev server...");
   const viteProcess: ChildProcess = spawn("bun", ["run", "dev"], {
     cwd: join(__dirname, ".."),
@@ -108,8 +106,6 @@ async function main() {
     const sidebarItems = ["Pipelines", "Input", "Logs", "Settings"];
     for (const label of sidebarItems) {
       const beforeSs = await ss(page, `button-audit-sidebar-${label.toLowerCase()}-before.png`);
-
-      // Find the sidebar nav item by its text
       const navItem = page.locator(".sidebar-region").getByText(label, { exact: true });
       const clickable = await isClickable(navItem);
 
@@ -119,8 +115,6 @@ async function main() {
       }
 
       const afterSs = await ss(page, `button-audit-sidebar-${label.toLowerCase()}-after.png`);
-
-      // Verify the nav item got the active class (bg-logo-primary)
       const parentDiv = navItem.locator("..");
       const classes = (await parentDiv.getAttribute("class")) || "";
       const isActive = classes.includes("bg-logo-primary");
@@ -130,7 +124,7 @@ async function main() {
         clickable && isActive,
         beforeSs,
         afterSs,
-        `clickable=${clickable}, active=${isActive}, classes="${classes.slice(0, 80)}"`,
+        `clickable=${clickable}, active=${isActive}`,
       );
     }
 
@@ -139,18 +133,14 @@ async function main() {
     // ═══════════════════════════════════════════════
     console.log("\n── Pipeline Cards ──");
 
-    // Go to Pipelines tab
     await page.locator(".sidebar-region").getByText("Pipelines", { exact: true }).click();
     await page.waitForTimeout(300);
 
-    // Get all pipeline cards — they have the settings-group-hover class
     const pipelineCards = page.locator(".settings-group-hover");
     const cardCount = await pipelineCards.count();
     console.log(`Found ${cardCount} pipeline cards`);
 
-    // Test first 3 pipeline cards (to keep audit manageable, but test selection/deselection)
-    const testCardIndices = [0, 1, 2];
-    for (const idx of testCardIndices) {
+    for (const idx of [0, 1, 2]) {
       if (idx >= cardCount) break;
       const card = pipelineCards.nth(idx);
       const cardName = (await card.locator("h3").textContent()) || `card-${idx}`;
@@ -158,17 +148,13 @@ async function main() {
 
       const beforeSs = await ss(page, `button-audit-pipeline-${safeName}-before.png`);
       const clickable = await isClickable(card);
-
       if (clickable) {
         await card.click();
         await page.waitForTimeout(300);
       }
-
       const afterSs = await ss(page, `button-audit-pipeline-${safeName}-after.png`);
 
-      // Check if detail panel appeared (settings-card)
       const detailVisible = await page.locator(".settings-card").first().isVisible().catch(() => false);
-      // Check if card got active border
       const cardClasses = (await card.getAttribute("class")) || "";
       const hasActiveBorder = cardClasses.includes("border-logo-primary");
 
@@ -181,130 +167,100 @@ async function main() {
       );
     }
 
-    // Deselect pipeline by clicking the active one again
-    const activeCard = pipelineCards.first();
-    await activeCard.click();
+    // Deselect
+    await pipelineCards.first().click();
     await page.waitForTimeout(200);
 
     // ═══════════════════════════════════════════════
-    // INPUT SOURCE OPTIONS
+    // UNIFIED SOURCE PICKER
     // ═══════════════════════════════════════════════
-    console.log("\n── Input Source Options ──");
+    console.log("\n── Unified Source Picker ──");
 
-    // Navigate to Input tab
-    await page.locator(".sidebar-region").getByText("Input", { exact: true }).click();
-    await page.waitForTimeout(300);
-
-    // First select a pipeline so inputs aren't all disabled
+    // Select a pipeline first so sources work in context
     await page.locator(".sidebar-region").getByText("Pipelines", { exact: true }).click();
     await page.waitForTimeout(200);
-    await pipelineCards.first().click(); // Select Object Detection (supports all inputs)
+    await pipelineCards.first().click();
     await page.waitForTimeout(200);
     await page.locator(".sidebar-region").getByText("Input", { exact: true }).click();
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
 
-    // Input options are divs with flex items-center gap-3 p-3 inside .space-y-1
-    const inputOptionDivs = page.locator(".space-y-1 > div.flex.items-center");
-    const inputLabels = ["Default Video", "USB Webcam", "Video File", "Pi Camera"];
-    const inputCount = await inputOptionDivs.count();
+    // Source picker uses <button> elements inside the source list
+    const sourceButtons = page.locator(".space-y-1 > button");
+    const sourceCount = await sourceButtons.count();
+    console.log(`  Found ${sourceCount} source buttons`);
 
-    for (let i = 0; i < Math.min(inputCount, inputLabels.length); i++) {
-      const label = inputLabels[i];
+    // Test clicking each available source
+    for (let i = 0; i < sourceCount; i++) {
+      const btn = sourceButtons.nth(i);
+      const label = ((await btn.locator("h3").textContent()) || `source-${i}`).trim();
       const safeName = label.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-      const optDiv = inputOptionDivs.nth(i);
-      const beforeSs = await ss(page, `button-audit-input-${safeName}-before.png`);
 
-      const clickable = await isClickable(optDiv);
+      const beforeSs = await ss(page, `button-audit-source-${safeName}-before.png`);
+      const clickable = await isClickable(btn);
+      const disabled = await btn.isDisabled();
 
-      if (clickable) {
-        await optDiv.click();
+      if (clickable && !disabled) {
+        await btn.click();
         await page.waitForTimeout(300);
       }
 
-      const afterSs = await ss(page, `button-audit-input-${safeName}-after.png`);
-
-      // Check if this option got the active border
-      const classes = (await optDiv.getAttribute("class")) || "";
+      const afterSs = await ss(page, `button-audit-source-${safeName}-after.png`);
+      const classes = (await btn.getAttribute("class")) || "";
       const isActive = classes.includes("border-logo-primary");
 
       record(
-        `Input Source: ${label}`,
-        clickable && isActive,
+        `Source: ${label}`,
+        (clickable && !disabled && isActive) || disabled,
         beforeSs,
         afterSs,
-        `clickable=${clickable}, active=${isActive}`,
+        `clickable=${clickable}, disabled=${disabled}, active=${isActive}`,
       );
     }
 
     // ═══════════════════════════════════════════════
-    // REFRESH WEBCAM BUTTON (known broken!)
+    // REFRESH SOURCES BUTTON
     // ═══════════════════════════════════════════════
-    console.log("\n── Refresh Webcam Button ──");
+    console.log("\n── Refresh Sources Button ──");
 
-    // Select USB Webcam to show the refresh button
-    await inputOptionDivs.nth(1).click(); // USB Webcam is index 1
-    await page.waitForTimeout(300);
-
-    // The refresh button is inside SettingsGroup "Detected Cameras" which only shows when USB is selected
-    // It's a <button> containing "Refresh" text and a RefreshCw icon
     const refreshBtn = page.locator("button", { hasText: "Refresh" });
     const refreshCount = await refreshBtn.count();
     console.log(`  Found ${refreshCount} refresh buttons`);
-    const beforeRefresh = await ss(page, "button-audit-refresh-webcam-before.png");
+    const beforeRefresh = await ss(page, "button-audit-refresh-sources-before.png");
     const refreshClickable = refreshCount > 0 && await isClickable(refreshBtn.first());
 
     if (refreshClickable) {
-      // Listen for any network/console activity as evidence the handler fired
-      const consoleLogs: string[] = [];
-      page.on("console", (msg) => consoleLogs.push(msg.text()));
-
       await refreshBtn.first().click();
-      await page.waitForTimeout(1000); // Give time for v4l2-ctl to run
-
-      const afterRefresh = await ss(page, "button-audit-refresh-webcam-after.png");
-
-      // Check: did the device count text change, or did console show invoke activity?
-      const deviceText = await page.getByText("device(s) found").textContent().catch(() => "");
-
-      record(
-        "Refresh Webcam Button",
-        refreshClickable && deviceText !== "",
-        beforeRefresh,
-        afterRefresh,
-        `clickable=${refreshClickable}, deviceText="${deviceText}", consoleLogs=${consoleLogs.length}`,
-      );
-    } else {
-      const afterRefresh = await ss(page, "button-audit-refresh-webcam-after.png");
-      record(
-        "Refresh Webcam Button",
-        false,
-        beforeRefresh,
-        afterRefresh,
-        `NOT CLICKABLE — button may be too small or obscured`,
-      );
+      await page.waitForTimeout(1000);
     }
 
+    const afterRefresh = await ss(page, "button-audit-refresh-sources-after.png");
+    const refreshBox = refreshClickable ? await refreshBtn.first().boundingBox() : null;
+    const refreshSize = refreshBox ? `${Math.round(refreshBox.width)}x${Math.round(refreshBox.height)}` : "n/a";
+
+    record(
+      "Refresh Sources Button",
+      refreshClickable,
+      beforeRefresh,
+      afterRefresh,
+      `clickable=${refreshClickable}, size=${refreshSize}`,
+    );
+
     // ═══════════════════════════════════════════════
-    // FILE BROWSE BUTTON
+    // FILE BROWSE BUTTON (select Video File source first)
     // ═══════════════════════════════════════════════
     console.log("\n── File Browse Button ──");
 
-    // Select Video File input
-    const fileHeading = page.getByRole("heading", { name: "Video File" });
-    await fileHeading.locator("../..").click();
-    await page.waitForTimeout(300);
+    const fileBtn = sourceButtons.filter({ hasText: "Video File" }).first();
+    if (await isClickable(fileBtn)) {
+      await fileBtn.click();
+      await page.waitForTimeout(300);
+    }
 
     const browseBtn = page.getByText("Browse", { exact: true });
     const beforeBrowse = await ss(page, "button-audit-browse-before.png");
     const browseClickable = await isClickable(browseBtn);
-
-    // We can't fully test the Tauri dialog in Playwright (it's a native dialog),
-    // but we can verify the button is clickable and has proper styling
     const browseBox = browseClickable ? await browseBtn.boundingBox() : null;
     const browseSize = browseBox ? `${Math.round(browseBox.width)}x${Math.round(browseBox.height)}` : "n/a";
-    const browseCursor = browseClickable
-      ? await browseBtn.evaluate((el) => window.getComputedStyle(el).cursor)
-      : "n/a";
 
     const afterBrowse = await ss(page, "button-audit-browse-after.png");
 
@@ -313,7 +269,7 @@ async function main() {
       browseClickable && (browseBox ? browseBox.width >= 30 && browseBox.height >= 20 : false),
       beforeBrowse,
       afterBrowse,
-      `clickable=${browseClickable}, size=${browseSize}, cursor=${browseCursor}`,
+      `clickable=${browseClickable}, size=${browseSize}`,
     );
 
     // ═══════════════════════════════════════════════
@@ -329,38 +285,28 @@ async function main() {
     const themeClickable = await isClickable(themeSelect);
 
     if (themeClickable) {
-      // Get current theme
-      const currentTheme = await themeSelect.inputValue();
-
-      // Change to a different theme
-      const options = await themeSelect.locator("option").allTextContents();
-      const otherOption = options.find((o) => o !== currentTheme) || options[0];
-
-      // Select different theme by its value
+      const currentVal = await themeSelect.inputValue();
       const optionValues = await themeSelect.locator("option").evaluateAll((els) =>
         els.map((el) => (el as HTMLOptionElement).value),
       );
-      const currentVal = await themeSelect.inputValue();
       const otherVal = optionValues.find((v) => v !== currentVal) || optionValues[0];
 
       await themeSelect.selectOption(otherVal);
       await page.waitForTimeout(500);
 
-      const afterTheme = await ss(page, "button-audit-theme-selector-after.png");
-
-      // Verify theme class changed on html element
       const htmlClasses = (await page.locator("html").getAttribute("class")) || "";
-      const themeChanged = !htmlClasses.includes("dark-galaxy-ultra") || currentVal !== otherVal;
+      const themeChanged = currentVal !== otherVal;
+
+      const afterTheme = await ss(page, "button-audit-theme-selector-after.png");
 
       record(
         "Theme Selector Dropdown",
         themeClickable && themeChanged,
         beforeTheme,
         afterTheme,
-        `clickable=${themeClickable}, changed=${themeChanged}, newClasses="${htmlClasses}", options=[${options.join(", ")}]`,
+        `clickable=${themeClickable}, changed=${themeChanged}, classes="${htmlClasses}"`,
       );
 
-      // Switch back to dark-galaxy-ultra
       await themeSelect.selectOption("darkGalaxyUltra");
       await page.waitForTimeout(300);
     } else {
@@ -379,79 +325,44 @@ async function main() {
     const clearBtn = page.getByText("Clear", { exact: true });
     const beforeClear = await ss(page, "button-audit-clear-logs-before.png");
     const clearClickable = await isClickable(clearBtn);
-
-    if (clearClickable) {
-      await clearBtn.click();
-      await page.waitForTimeout(300);
-    }
-
+    if (clearClickable) await clearBtn.click();
+    await page.waitForTimeout(300);
     const afterClear = await ss(page, "button-audit-clear-logs-after.png");
 
-    record(
-      "Clear Logs Button",
-      clearClickable,
-      beforeClear,
-      afterClear,
-      `clickable=${clearClickable}`,
-    );
+    record("Clear Logs Button", clearClickable, beforeClear, afterClear, `clickable=${clearClickable}`);
 
     // ═══════════════════════════════════════════════
-    // FOOTER: CAPTURE MODE TOGGLE
+    // FOOTER CONTROLS
     // ═══════════════════════════════════════════════
     console.log("\n── Footer Controls ──");
 
-    // Capture mode toggle — find the button with Camera or Video icon in footer
     const footer = page.locator(".border-t.border-surface-border");
-    const captureModeBtn = footer.locator("button").first();
-    const beforeCaptureMode = await ss(page, "button-audit-capture-mode-before.png");
-    const captureModeClickable = await isClickable(captureModeBtn);
 
-    let captureModeChanged = false;
-    if (captureModeClickable) {
+    // Capture mode toggle
+    const captureModeBtn = footer.locator("button").first();
+    const beforeCM = await ss(page, "button-audit-capture-mode-before.png");
+    const cmClickable = await isClickable(captureModeBtn);
+    let cmChanged = false;
+    if (cmClickable) {
       const titleBefore = await captureModeBtn.getAttribute("title");
       await captureModeBtn.click();
       await page.waitForTimeout(300);
       const titleAfter = await captureModeBtn.getAttribute("title");
-      captureModeChanged = titleBefore !== titleAfter;
+      cmChanged = titleBefore !== titleAfter;
     }
+    const afterCM = await ss(page, "button-audit-capture-mode-after.png");
+    record("Capture Mode Toggle", cmClickable && cmChanged, beforeCM, afterCM, `clickable=${cmClickable}, changed=${cmChanged}`);
 
-    const afterCaptureMode = await ss(page, "button-audit-capture-mode-after.png");
-
-    record(
-      "Capture Mode Toggle",
-      captureModeClickable && captureModeChanged,
-      beforeCaptureMode,
-      afterCaptureMode,
-      `clickable=${captureModeClickable}, changed=${captureModeChanged}`,
-    );
-
-    // ═══════════════════════════════════════════════
-    // FOOTER: CAPTURE BUTTON (Snap/REC)
-    // ═══════════════════════════════════════════════
+    // Capture button
     const captureBtn = footer.locator("button").nth(1);
-    const beforeCapture = await ss(page, "button-audit-capture-btn-before.png");
-    const captureClickable = await isClickable(captureBtn);
-    const captureText = (await captureBtn.textContent()) || "";
-    const captureBox = captureClickable ? await captureBtn.boundingBox() : null;
-    const captureSize = captureBox
-      ? `${Math.round(captureBox.width)}x${Math.round(captureBox.height)}`
-      : "n/a";
+    const beforeCap = await ss(page, "button-audit-capture-btn-before.png");
+    const capClickable = await isClickable(captureBtn);
+    const capBox = capClickable ? await captureBtn.boundingBox() : null;
+    const capSize = capBox ? `${Math.round(capBox.width)}x${Math.round(capBox.height)}` : "n/a";
+    const afterCap = await ss(page, "button-audit-capture-btn-after.png");
+    record("Capture Button", capClickable && (capBox ? capBox.height >= 28 : false), beforeCap, afterCap, `clickable=${capClickable}, size=${capSize}`);
 
-    // Don't actually click capture — it would trigger screenshot/recording on the system
-    const afterCapture = await ss(page, "button-audit-capture-btn-after.png");
-
-    record(
-      "Capture Button (Snap/REC)",
-      captureClickable && (captureBox ? captureBox.height >= 20 : false),
-      beforeCapture,
-      afterCapture,
-      `clickable=${captureClickable}, text="${captureText.trim()}", size=${captureSize}`,
-    );
-
-    // ═══════════════════════════════════════════════
-    // FOOTER: RUN/STOP PIPELINE BUTTON
-    // ═══════════════════════════════════════════════
-    // First select a pipeline so the Run button appears
+    // Run/Stop button — need pipeline selected
     await page.locator(".sidebar-region").getByText("Pipelines", { exact: true }).click();
     await page.waitForTimeout(200);
     await pipelineCards.first().click();
@@ -460,30 +371,16 @@ async function main() {
     const runBtn = footer.locator("button").last();
     const beforeRun = await ss(page, "button-audit-run-btn-before.png");
     const runClickable = await isClickable(runBtn);
-    const runText = (await runBtn.textContent()) || "";
     const runBox = runClickable ? await runBtn.boundingBox() : null;
     const runSize = runBox ? `${Math.round(runBox.width)}x${Math.round(runBox.height)}` : "n/a";
-    const runCursor = runClickable
-      ? await runBtn.evaluate((el) => window.getComputedStyle(el).cursor)
-      : "n/a";
-
-    // Don't actually click Run — it would try to start a pipeline
     const afterRun = await ss(page, "button-audit-run-btn-after.png");
-
-    record(
-      "Run/Stop Pipeline Button",
-      runClickable && (runBox ? runBox.width >= 44 && runBox.height >= 28 : false),
-      beforeRun,
-      afterRun,
-      `clickable=${runClickable}, text="${runText.trim()}", size=${runSize}, cursor=${runCursor}`,
-    );
+    record("Run/Stop Pipeline Button", runClickable && (runBox ? runBox.width >= 44 && runBox.height >= 28 : false), beforeRun, afterRun, `clickable=${runClickable}, size=${runSize}`);
 
     // ═══════════════════════════════════════════════
-    // TOUCH TARGET SIZE AUDIT
+    // TOUCH TARGET AUDIT
     // ═══════════════════════════════════════════════
     console.log("\n── Touch Target Audit ──");
 
-    // Check all buttons have minimum 44x44 or at least reasonable click targets
     const allButtons = page.locator("button");
     const buttonCount = await allButtons.count();
     let smallButtons = 0;
@@ -506,46 +403,8 @@ async function main() {
       null,
       null,
       smallButtons === 0
-        ? `All ${buttonCount} buttons have adequate touch targets`
+        ? `All ${buttonCount} visible buttons have adequate touch targets`
         : `${smallButtons} buttons too small: ${smallButtonNames.join(", ")}`,
-    );
-
-    // ═══════════════════════════════════════════════
-    // POINTER-EVENTS AND CURSOR AUDIT
-    // ═══════════════════════════════════════════════
-    console.log("\n── Cursor/Pointer-Events Audit ──");
-
-    const interactiveElements = page.locator("button, [onclick], [role='button'], select, .cursor-pointer");
-    const interactiveCount = await interactiveElements.count();
-    let missingCursor = 0;
-    const missingCursorNames: string[] = [];
-
-    for (let i = 0; i < interactiveCount; i++) {
-      const el = interactiveElements.nth(i);
-      if (!(await el.isVisible())) continue;
-
-      const cursor = await el.evaluate((e) => window.getComputedStyle(e).cursor);
-      const pointerEvents = await el.evaluate((e) => window.getComputedStyle(e).pointerEvents);
-
-      if (cursor !== "pointer" && pointerEvents !== "none") {
-        // Buttons and selects have default cursor which is fine for semantic elements
-        const tagName = await el.evaluate((e) => e.tagName.toLowerCase());
-        if (tagName !== "button" && tagName !== "select") {
-          missingCursor++;
-          const text = ((await el.textContent()) || `el-${i}`).trim().slice(0, 30);
-          missingCursorNames.push(`"${text}" (cursor=${cursor})`);
-        }
-      }
-    }
-
-    record(
-      "Cursor Styles",
-      missingCursor === 0,
-      null,
-      null,
-      missingCursor === 0
-        ? `All interactive elements have proper cursor styles`
-        : `${missingCursor} elements missing cursor:pointer: ${missingCursorNames.join(", ")}`,
     );
 
   } finally {

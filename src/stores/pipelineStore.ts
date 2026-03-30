@@ -151,11 +151,13 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       const sources = await invoke<AvailableSource[]>("detect_sources");
       set({ availableSources: sources });
     } catch {
-      // Fallback: provide at least demo and file
+      // Fallback: provide core sources when Tauri backend is unavailable (e.g. dev mode)
       set({
         availableSources: [
           { id: "demo", label: "Demo Video", source_type: "demo", device_path: null, available: true },
           { id: "file", label: "Video File", source_type: "file", device_path: null, available: true },
+          { id: "screen-full", label: "Full Screen", source_type: "screen", device_path: null, available: true },
+          { id: "screen-region", label: "Screen Region", source_type: "screen", device_path: null, available: true },
         ],
       });
     }
