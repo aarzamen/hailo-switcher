@@ -95,6 +95,14 @@ pub fn spawn_pipeline(
         cmd.current_dir(dir);
     }
 
+    // Log the exact command being spawned
+    eprintln!(
+        "[hailo-switcher] Spawning: {} {} (cwd: {:?})",
+        program,
+        args.join(" "),
+        working_dir.unwrap_or("(inherit)")
+    );
+
     let mut child = cmd.spawn().map_err(|e| format!("Failed to spawn: {}", e))?;
 
     let pid = child.id().ok_or("Failed to get child process ID")?;

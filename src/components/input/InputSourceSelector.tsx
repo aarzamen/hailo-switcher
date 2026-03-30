@@ -13,7 +13,7 @@ import {
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { SettingsGroup } from "@/components/ui/SettingsGroup";
 import { ScreenRegionSelector } from "./ScreenRegionSelector";
-import type { AvailableSource } from "@/types/pipeline";
+import type { AvailableSource, PipelineType } from "@/types/pipeline";
 
 const SOURCE_ICONS: Record<string, React.ComponentType<{ size?: number | string; className?: string }>> = {
   "demo": Film,
@@ -31,6 +31,14 @@ function getIcon(source: AvailableSource) {
   return Film;
 }
 
+/** CSI-compatible source IDs — the only ones rpicam pipelines can use */
+const CSI_SOURCE_IDS = new Set(["picam-0"]);
+
+function isSourceCompatible(sourceId: string, pipelineType: PipelineType | undefined): boolean {
+  if (pipelineType !== "rpicam") return true;
+  return CSI_SOURCE_IDS.has(sourceId);
+}
+
 export const InputSourceSelector: React.FC = () => {
   const selectedSourceId = usePipelineStore((s) => s.selectedSourceId);
   const selectedFilePath = usePipelineStore((s) => s.selectedFilePath);
@@ -42,6 +50,8 @@ export const InputSourceSelector: React.FC = () => {
   const refreshSources = usePipelineStore((s) => s.refreshSources);
   const screenRegion = usePipelineStore((s) => s.screenRegion);
   const setScreenRegion = usePipelineStore((s) => s.setScreenRegion);
+  const pipelineType = usePipelineStore((s) => s.activePipeline?.type);
+  const isRpicam = pipelineType === "rpicam";
 
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -73,18 +83,24 @@ export const InputSourceSelector: React.FC = () => {
         description="Select an input source for the pipeline"
       >
         <div className="p-2 space-y-1">
+          {isRpicam && (
+            <p className="text-[11px] text-amber-400 px-3 py-1.5">
+              This pipeline requires Pi Camera Module.
+            </p>
+          )}
           {availableSources.map((source) => {
             const Icon = getIcon(source);
             const isActive = selectedSourceId === source.id;
-            const isAvailable = source.available;
+            const compatible = isSourceCompatible(source.id, pipelineType);
+            const isDisabled = !source.available || !compatible;
 
             return (
               <button
                 key={source.id}
-                onClick={() => isAvailable && selectSource(source.id)}
-                disabled={!isAvailable}
+                onClick={() => !isDisabled && selectSource(source.id)}
+                disabled={isDisabled}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg transition-all border text-left cursor-pointer ${
-                  !isAvailable
+                  isDisabled
                     ? "opacity-40 cursor-not-allowed border-transparent"
                     : isActive
                       ? "border-logo-primary bg-accent-glow"
@@ -93,13 +109,16 @@ export const InputSourceSelector: React.FC = () => {
               >
                 <Icon
                   size={22}
-                  className={isActive && isAvailable ? "text-logo-primary" : "text-mid-gray"}
+                  className={isActive && !isDisabled ? "text-logo-primary" : "text-mid-gray"}
                 />
                 <div className="min-w-0 flex-1">
                   <h3 className="text-sm font-medium truncate">
                     {source.label}
-                    {!isAvailable && (
+                    {!source.available && (
                       <span className="text-[10px] text-mid-gray ml-2">(not detected)</span>
+                    )}
+                    {source.available && !compatible && (
+                      <span className="text-[10px] text-mid-gray ml-2">(rpicam only)</span>
                     )}
                   </h3>
                   <p className="text-xs text-mid-gray">{source.source_type}</p>
@@ -107,7 +126,7 @@ export const InputSourceSelector: React.FC = () => {
                 {/* Availability dot */}
                 <span
                   className={`inline-block w-2 h-2 rounded-full shrink-0 ${
-                    isAvailable ? "bg-green-400" : "bg-mid-gray/40"
+                    isDisabled ? "bg-mid-gray/40" : "bg-green-400"
                   }`}
                 />
               </button>

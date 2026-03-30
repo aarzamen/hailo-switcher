@@ -1,3 +1,31 @@
+# v0.2.1 Release Notes
+
+## New Features
+
+### Network Camera Support (RPi4 → RPi5)
+- **v4l2loopback bridge**: Stream a remote RPi camera over ethernet to `/dev/video10` via UDP RTP H.264
+- **Helper script**: `./scripts/network-camera.sh start|stop|status` manages the GStreamer receiver and v4l2loopback module
+- **Auto-discovery**: Network camera appears in the source picker automatically via `detect_sources()`
+- **~150-250ms latency** over wired ethernet
+
+### Native RTSP Input for Hailo Pipelines
+- **Patched `get_source_type()`** in hailo-rpi5-examples to recognize `rtsp://` URLs
+- **`SOURCE_PIPELINE()` RTSP support**: Uses `rtspsrc location=... latency=200 ! decodebin` for network streams
+- **Patch file**: `patches/hailo-rtsp-support.patch` for re-applying after hailo-rpi5-examples updates
+- Works with MediaMTX, IP cameras, or any RTSP source
+
+### Pipeline Source Compatibility
+- **rpicam source filter**: Non-CSI sources grayed out when an rpicam pipeline is selected, with "This pipeline requires Pi Camera Module" note
+- **Pi Camera fix**: `picam-0` now sends `--input rpi` (was incorrectly hardcoded to `/dev/video0`)
+- **Pi Camera detection fix**: Uses `rpicam-hello` instead of non-existent `libcamera-hello`
+
+### Debug Logging
+- Pipeline commands logged to stderr: exact program, args, and working directory
+- Warning logged when no video source is provided (pipeline uses built-in default)
+- Source received from frontend logged on every `start_pipeline` call
+
+---
+
 # v0.2.0 Release Notes
 
 ## New Features

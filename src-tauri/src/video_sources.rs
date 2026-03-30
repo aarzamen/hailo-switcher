@@ -29,8 +29,12 @@ pub struct AvailableSource {
     pub available: bool,
 }
 
-/// Validate a device path (must start with /dev/).
+/// Validate a device path (must start with /dev/ or be "rpi" for Pi Camera).
 fn validate_device_path(path: &str) -> Result<&str, String> {
+    // "rpi" is a special value for Pi Camera via libcamera (Python pipelines)
+    if path == "rpi" {
+        return Ok(path);
+    }
     if !path.starts_with("/dev/") {
         return Err(format!("Invalid device path: {}", path));
     }

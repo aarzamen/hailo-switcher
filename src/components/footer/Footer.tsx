@@ -168,7 +168,7 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* Version */}
-      <span className="text-[10px] text-mid-gray/50">v0.2.0</span>
+      <span className="text-[10px] text-mid-gray/50">v0.2.1</span>
     </div>
   );
 };

@@ -1,0 +1,24 @@
+--- a/core/gstreamer/gstreamer_helper_pipelines.py
++++ b/core/gstreamer/gstreamer_helper_pipelines.py
+@@ -16,6 +16,8 @@ def get_source_type(input_source):
+         return 'rpi'
+     elif input_source.startswith("libcamera"): # Use libcamerasrc element, not suggested
+         return 'libcamera'
++    elif input_source.startswith("rtsp://"):
++        return 'rtsp'
+     elif input_source.startswith('0x'):
+         return 'ximage'
+     else:
+@@ -103,6 +105,11 @@ def SOURCE_PIPELINE(video_source, video_width=640, video_height=640,
+         f'libcamerasrc name={name} ! '
+         f'video/x-raw, format={video_format}, width=1536, height=864 ! '
+     )
++    elif source_type == 'rtsp':
++        source_element = (
++            f'rtspsrc location="{video_source}" latency=200 name={name} ! '
++            f'{QUEUE(name=f"{name}_queue_decode")} ! '
++            f'decodebin name={name}_decodebin ! '
++        )
+     elif source_type == 'ximage':
+         source_element = (
+             f'ximagesrc xid={video_source} ! '

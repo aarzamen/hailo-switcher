@@ -69,12 +69,13 @@ function buildVideoSource(
   if (src.id === "screen-region") {
     return { type: "Screen", value: screenRegion };
   }
-  // Device — use device_path if available, else Pi Camera
+  // Device — use device_path from detect_sources()
   if (src.device_path) {
     return { type: "Device", value: src.device_path };
   }
+  // Pi Camera uses libcamera, not v4l2 — Python pipelines expect "--input rpi"
   if (src.id === "picam-0") {
-    return { type: "Device", value: "/dev/video0" };
+    return { type: "Device", value: "rpi" };
   }
   return null;
 }

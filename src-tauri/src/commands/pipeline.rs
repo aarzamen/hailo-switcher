@@ -44,6 +44,9 @@ pub async fn start_pipeline(
         },
     );
 
+    // Log the source received from the frontend
+    eprintln!("[hailo-switcher] start_pipeline: type={}, source={:?}", pipeline_type, source);
+
     // Validate source paths before proceeding
     if let Some(ref src) = source {
         src.validate()?;
@@ -63,6 +66,8 @@ pub async fn start_pipeline(
                     args.push("--input".to_string());
                     args.push(input_arg);
                 }
+            } else {
+                eprintln!("[hailo-switcher] WARNING: No video source provided — pipeline will use its built-in default");
             }
 
             let env_vars = vec![

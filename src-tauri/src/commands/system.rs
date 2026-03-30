@@ -68,15 +68,18 @@ pub async fn detect_sources() -> Result<Vec<AvailableSource>, String> {
         }
     }
 
-    // Check for Pi Camera via libcamera-hello
-    let picam_output = tokio::process::Command::new("libcamera-hello")
+    // Check for Pi Camera via rpicam-hello (libcamera-hello doesn't exist on newer Pi OS)
+    let picam_output = tokio::process::Command::new("rpicam-hello")
         .arg("--list-cameras")
         .output()
         .await;
 
     let picam_available = if let Ok(output) = picam_output {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        stdout.contains("Available cameras") && !stdout.contains(": 0 cameras")
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let combined = format!("{}{}", stdout, stderr);
+        // rpicam-hello outputs "Available cameras" with details, or "No cameras available!"
+        combined.contains("Available cameras") && !combined.contains("No cameras available")
     } else {
         false
     };

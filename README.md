@@ -57,13 +57,39 @@ The app auto-detects all available video sources on startup:
 | Source | Detection Method | Notes |
 |--------|-----------------|-------|
 | USB Cameras | `v4l2-ctl --list-devices` | Shows device name, filters non-camera devices |
-| Pi Camera | `libcamera-hello --list-cameras` | CSI-connected camera modules |
+| Pi Camera | `rpicam-hello --list-cameras` | CSI-connected camera modules |
+| Network Camera | v4l2loopback `/dev/video10` | Remote RPi camera over ethernet (see below) |
+| RTSP Stream | User-provided URL | `rtsp://` URLs via `rtspsrc` GStreamer element |
+| YouTube Stream | User-provided URL | Resolved via `yt-dlp` to direct stream |
 | Full Screen | Always available | X11 (`ximagesrc`) or Wayland (`pipewiresrc`) |
 | Screen Region | Always available | Custom x/y/width/height or presets |
 | Demo Video | Always available | Built-in `example.mp4` from hailo-rpi5-examples |
 | Video File | Always available | User picks `.mp4`, `.avi`, `.mkv`, `.mov`, `.webm` |
 
 All sources resolve to a GStreamer source element via the `VideoSource` enum in the Rust backend.
+
+### Network Camera (Remote RPi)
+
+If your camera is connected to a different Raspberry Pi (e.g., Camera Module 3 on an RPi4), you can stream it over ethernet to this Pi for Hailo inference.
+
+**On this Pi (RPi5 receiver):**
+```bash
+# Start the network camera receiver (creates /dev/video10 via v4l2loopback)
+./scripts/network-camera.sh start
+```
+
+**On the remote Pi (RPi4 sender):**
+```bash
+rpicam-vid -t 0 --width 1280 --height 720 --framerate 30 \
+  --codec h264 --inline --bitrate 4000000 -o - | \
+  gst-launch-1.0 fdsrc ! h264parse ! rtph264pay config-interval=1 pt=96 ! \
+  udpsink host=<RPi5_IP> port=5000 sync=false
+```
+
+The network camera appears automatically in the source picker as a regular device. Expected latency: ~150-250ms over ethernet.
+
+**Alternative — RTSP via MediaMTX:**
+Run [MediaMTX](https://github.com/bluenviron/mediamtx) on the RPi4 with `rpiCamera` source, then use the Stream source in the UI with `rtsp://<RPi4_IP>:8554/cam`. Requires the RTSP patch (included in `patches/hailo-rtsp-support.patch`).
 
 ## Prerequisites
 

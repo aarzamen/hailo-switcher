@@ -58,4 +58,6 @@ This rule is non-negotiable. Do not ship UI without Playwright proof.
 - rpicam-apps pipelines require Pi Camera Module (CSI) — other sources work with Python pipelines only
 - YouTube streaming requires `yt-dlp` installed (`pip install yt-dlp`)
 - Screen capture via v4l2loopback requires `sudo modprobe v4l2loopback`
+- Network camera: `./scripts/network-camera.sh start` bridges remote RPi camera to `/dev/video10`
+- RTSP support patched into hailo-rpi5-examples (`patches/hailo-rtsp-support.patch`)
 - CSP is set — inline scripts won't work, all scripts must be bundled
