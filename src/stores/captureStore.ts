@@ -8,12 +8,14 @@ interface CaptureState {
   isRecording: boolean;
   lastSavePath: string | null;
   saveDirectory: string;
+  errorMessage: string | null;
 
   toggleCaptureMode: () => void;
   takeScreenshot: () => Promise<void>;
   startRecording: () => Promise<void>;
   stopRecording: () => Promise<void>;
   setSaveDirectory: (dir: string) => void;
+  clearError: () => void;
 }
 
 function timestamp(): string {
@@ -27,6 +29,7 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
   isRecording: false,
   lastSavePath: null,
   saveDirectory: "/home/ama/Desktop",
+  errorMessage: null,
 
   toggleCaptureMode: () =>
     set((s) => ({
@@ -37,10 +40,11 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     const { saveDirectory } = get();
     const path = `${saveDirectory}/hailo-capture-${timestamp()}.png`;
     try {
+      set({ errorMessage: null });
       const result = await invoke<string>("take_screenshot", { savePath: path });
       set({ lastSavePath: result });
     } catch (e) {
-      console.error("Screenshot failed:", e);
+      set({ errorMessage: `Screenshot failed: ${e}` });
     }
   },
 
@@ -48,22 +52,25 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     const { saveDirectory } = get();
     const path = `${saveDirectory}/hailo-capture-${timestamp()}.mp4`;
     try {
+      set({ errorMessage: null });
       await invoke("start_recording", { savePath: path });
       set({ isRecording: true, lastSavePath: path });
     } catch (e) {
-      console.error("Recording failed:", e);
+      set({ errorMessage: `Recording failed: ${e}` });
     }
   },
 
   stopRecording: async () => {
     try {
+      set({ errorMessage: null });
       const path = await invoke<string>("stop_recording");
       set({ isRecording: false, lastSavePath: path });
     } catch (e) {
-      console.error("Stop recording failed:", e);
-      set({ isRecording: false });
+      set({ isRecording: false, errorMessage: `Stop recording failed: ${e}` });
     }
   },
 
   setSaveDirectory: (dir) => set({ saveDirectory: dir }),
+
+  clearError: () => set({ errorMessage: null }),
 }));
