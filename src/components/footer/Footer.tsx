@@ -94,16 +94,16 @@ export const Footer: React.FC = () => {
           {/* Mode toggle */}
           <button
             onClick={toggleCaptureMode}
-            className="p-1.5 rounded border border-mid-gray/30 text-mid-gray hover:text-text hover:border-mid-gray/60 transition-all"
+            className="p-2 min-w-[32px] min-h-[32px] flex items-center justify-center rounded border border-mid-gray/30 text-mid-gray hover:text-text hover:border-mid-gray/60 transition-all cursor-pointer"
             title={captureMode === "still" ? "Switch to video" : "Switch to still"}
           >
-            {captureMode === "still" ? <Camera size={12} /> : <Video size={12} />}
+            {captureMode === "still" ? <Camera size={14} /> : <Video size={14} />}
           </button>
 
           {/* Capture/Record button */}
           <button
             onClick={handleCapture}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] font-medium transition-all ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 min-h-[32px] rounded text-[11px] font-medium transition-all cursor-pointer ${
               flashCapture
                 ? "bg-green-500/80 text-white"
                 : isRecording
@@ -135,7 +135,7 @@ export const Footer: React.FC = () => {
           <button
             onClick={() => (isRunning || isBusy) ? stopPipeline() : startPipeline()}
             disabled={isBusy}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md font-medium text-xs transition-all ${
+            className={`flex items-center gap-1.5 px-4 py-2 min-h-[36px] min-w-[72px] rounded-md font-medium text-xs transition-all cursor-pointer ${
               isRunning
                 ? "bg-red-500/90 hover:bg-red-500 text-white"
                 : isBusy

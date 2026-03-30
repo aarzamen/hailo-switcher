@@ -113,7 +113,7 @@ export const InputSourceSelector: React.FC = () => {
             />
             <button
               onClick={handleFileSelect}
-              className="px-3 py-1.5 bg-logo-primary/20 hover:bg-logo-primary/30 border border-logo-primary/40 rounded text-sm text-logo-primary transition-colors"
+              className="px-3 py-1.5 min-h-[32px] bg-logo-primary/20 hover:bg-logo-primary/30 active:bg-logo-primary/40 border border-logo-primary/40 rounded text-sm text-logo-primary transition-colors cursor-pointer"
             >
               Browse
             </button>
@@ -131,9 +131,9 @@ export const InputSourceSelector: React.FC = () => {
               </span>
               <button
                 onClick={refreshDevices}
-                className="flex items-center gap-1 text-xs text-logo-primary hover:text-logo-primary/80 transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[32px] min-w-[44px] rounded border border-logo-primary/40 bg-logo-primary/10 text-xs text-logo-primary hover:bg-logo-primary/20 active:bg-logo-primary/30 transition-colors cursor-pointer pointer-events-auto"
               >
-                <RefreshCw size={12} /> Refresh
+                <RefreshCw size={14} /> Refresh
               </button>
             </div>
             {availableDevices.length > 0 ? (

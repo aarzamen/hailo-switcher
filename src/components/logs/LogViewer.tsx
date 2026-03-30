@@ -39,7 +39,7 @@ export const LogViewer: React.FC = () => {
         </div>
         <button
           onClick={clearLogs}
-          className="flex items-center gap-1 text-xs text-mid-gray hover:text-red-400 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1.5 min-h-[32px] rounded text-xs text-mid-gray hover:text-red-400 transition-colors cursor-pointer"
         >
           <Trash2 size={12} /> Clear
         </button>
