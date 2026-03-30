@@ -9,6 +9,7 @@ import type {
   AvailableSource,
   ScreenRegion,
 } from "@/types/pipeline";
+import { useDetectionStore } from "@/stores/detectionStore";
 
 const MAX_LOG_LINES = 2000;
 const FPS_REGEX = /FPS:\s*([\d.]+)/;
@@ -175,6 +176,12 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           stream: event.payload.stream,
           timestamp: Date.now(),
         });
+
+        // Feed stdout lines to detection parser
+        if (event.payload.stream === "stdout") {
+          const pipelineName = get().activePipeline?.name ?? "unknown";
+          useDetectionStore.getState().parseLogLine(event.payload.line, pipelineName);
+        }
       },
     );
 

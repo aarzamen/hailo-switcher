@@ -4,9 +4,11 @@ import {
   Video,
   Terminal,
   Settings,
+  BarChart3,
 } from "lucide-react";
 import { PipelineGrid } from "./pipelines/PipelineGrid";
 import { InputSourceSelector } from "./input/InputSourceSelector";
+import { DetectionPanel } from "./detections/DetectionPanel";
 import { LogViewer } from "./logs/LogViewer";
 import { SettingsView } from "./settings/SettingsView";
 
@@ -36,6 +38,11 @@ export const SECTIONS_CONFIG = {
     label: "Input",
     icon: Video,
     component: InputSourceSelector,
+  },
+  detections: {
+    label: "Detections",
+    icon: BarChart3,
+    component: DetectionPanel,
   },
   logs: {
     label: "Logs",
