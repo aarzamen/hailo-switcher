@@ -8,6 +8,7 @@ import {
   FileVideo,
   RefreshCw,
   Loader2,
+  Radio,
 } from "lucide-react";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { SettingsGroup } from "@/components/ui/SettingsGroup";
@@ -20,6 +21,7 @@ const SOURCE_ICONS: Record<string, React.ComponentType<{ size?: number | string;
   "screen-full": Monitor,
   "screen-region": Crop,
   "picam-0": Camera,
+  "stream": Radio,
 };
 
 function getIcon(source: AvailableSource) {
@@ -32,9 +34,11 @@ function getIcon(source: AvailableSource) {
 export const InputSourceSelector: React.FC = () => {
   const selectedSourceId = usePipelineStore((s) => s.selectedSourceId);
   const selectedFilePath = usePipelineStore((s) => s.selectedFilePath);
+  const streamUrl = usePipelineStore((s) => s.streamUrl);
   const availableSources = usePipelineStore((s) => s.availableSources);
   const selectSource = usePipelineStore((s) => s.selectSource);
   const setFilePath = usePipelineStore((s) => s.setFilePath);
+  const setStreamUrl = usePipelineStore((s) => s.setStreamUrl);
   const refreshSources = usePipelineStore((s) => s.refreshSources);
   const screenRegion = usePipelineStore((s) => s.screenRegion);
   const setScreenRegion = usePipelineStore((s) => s.setScreenRegion);
@@ -145,6 +149,24 @@ export const InputSourceSelector: React.FC = () => {
             >
               Browse
             </button>
+          </div>
+        </SettingsGroup>
+      )}
+
+      {/* Stream URL input — shown when "stream" source is selected */}
+      {selectedSourceId === "stream" && (
+        <SettingsGroup title="Stream URL" description="YouTube URL or RTSP address">
+          <div className="p-3">
+            <input
+              type="text"
+              value={streamUrl}
+              onChange={(e) => setStreamUrl(e.target.value)}
+              placeholder="https://youtube.com/watch?v=... or rtsp://..."
+              className="w-full bg-mid-gray/10 border border-mid-gray/30 rounded px-2 py-1.5 text-sm text-text placeholder:text-mid-gray/50 focus:border-logo-primary focus:outline-none"
+            />
+            <p className="text-[10px] text-mid-gray mt-1.5">
+              YouTube requires yt-dlp installed. RTSP streams connect directly.
+            </p>
           </div>
         </SettingsGroup>
       )}

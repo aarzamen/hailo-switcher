@@ -9,6 +9,7 @@ import type {
   AvailableSource,
   ScreenRegion,
 } from "@/types/pipeline";
+import { useDetectionStore } from "@/stores/detectionStore";
 
 const MAX_LOG_LINES = 2000;
 const FPS_REGEX = /FPS:\s*([\d.]+)/;
@@ -18,6 +19,7 @@ interface PipelineState {
   pipelineStatus: PipelineStatus;
   selectedSourceId: string | null;
   selectedFilePath: string;
+  streamUrl: string;
   screenRegion: ScreenRegion;
   logs: LogEntry[];
   availableSources: AvailableSource[];
@@ -28,6 +30,7 @@ interface PipelineState {
   selectPipeline: (pipeline: PipelineDefinition | null) => void;
   selectSource: (sourceId: string) => void;
   setFilePath: (path: string) => void;
+  setStreamUrl: (url: string) => void;
   setScreenRegion: (region: ScreenRegion) => void;
   startPipeline: () => Promise<void>;
   stopPipeline: () => Promise<void>;
@@ -43,6 +46,7 @@ function buildVideoSource(
   sources: AvailableSource[],
   filePath: string,
   screenRegion: ScreenRegion,
+  streamUrl: string,
 ): VideoSource | null {
   const src = sources.find((s) => s.id === sourceId);
   if (!src) return null;
@@ -52,6 +56,9 @@ function buildVideoSource(
   }
   if (src.id === "file") {
     return filePath ? { type: "File", value: filePath } : null;
+  }
+  if (src.id === "stream") {
+    return streamUrl ? { type: "Stream", value: streamUrl } : null;
   }
   if (src.id === "screen-full") {
     return {
@@ -77,6 +84,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   pipelineStatus: "idle",
   selectedSourceId: "demo",
   selectedFilePath: "",
+  streamUrl: "",
   screenRegion: { x: 0, y: 0, width: 640, height: 480, full_screen: false },
   logs: [],
   availableSources: [],
@@ -90,17 +98,19 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   setFilePath: (path) => set({ selectedFilePath: path }),
 
+  setStreamUrl: (url) => set({ streamUrl: url }),
+
   setScreenRegion: (region) => set({ screenRegion: region }),
 
   startPipeline: async () => {
-    const { activePipeline, selectedSourceId, availableSources, selectedFilePath, screenRegion } =
+    const { activePipeline, selectedSourceId, availableSources, selectedFilePath, screenRegion, streamUrl } =
       get();
     if (!activePipeline) return;
 
     set({ pipelineStatus: "starting", errorMessage: null, logs: [], currentFps: null });
 
     const source = selectedSourceId
-      ? buildVideoSource(selectedSourceId, availableSources, selectedFilePath, screenRegion)
+      ? buildVideoSource(selectedSourceId, availableSources, selectedFilePath, screenRegion, streamUrl)
       : null;
 
     try {
@@ -158,6 +168,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           { id: "file", label: "Video File", source_type: "file", device_path: null, available: true },
           { id: "screen-full", label: "Full Screen", source_type: "screen", device_path: null, available: true },
           { id: "screen-region", label: "Screen Region", source_type: "screen", device_path: null, available: true },
+          { id: "stream", label: "RTSP Stream", source_type: "stream", device_path: null, available: true },
         ],
       });
     }
@@ -175,6 +186,12 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           stream: event.payload.stream,
           timestamp: Date.now(),
         });
+
+        // Feed stdout lines to detection parser
+        if (event.payload.stream === "stdout") {
+          const pipelineName = get().activePipeline?.name ?? "unknown";
+          useDetectionStore.getState().parseLogLine(event.payload.line, pipelineName);
+        }
       },
     );
 

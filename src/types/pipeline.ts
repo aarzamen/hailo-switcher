@@ -31,12 +31,13 @@ export type VideoSource =
   | { type: "Device"; value: string }
   | { type: "File"; value: string }
   | { type: "Screen"; value: ScreenRegion }
+  | { type: "Stream"; value: string }
   | { type: "Demo" };
 
 export interface AvailableSource {
   id: string;
   label: string;
-  source_type: "device" | "screen" | "demo" | "file";
+  source_type: "device" | "screen" | "demo" | "file" | "stream";
   device_path: string | null;
   available: boolean;
 }

@@ -89,6 +89,9 @@ pub async fn detect_sources() -> Result<Vec<AvailableSource>, String> {
         available: picam_available,
     });
 
+    // Detect v4l2loopback virtual devices
+    let loopback_device = detect_v4l2loopback().await;
+
     // Screen capture — always available
     let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default();
     let display_type = if session_type == "wayland" {
@@ -96,12 +99,17 @@ pub async fn detect_sources() -> Result<Vec<AvailableSource>, String> {
     } else {
         "X11"
     };
+    let screen_note = if loopback_device.is_some() {
+        format!(" ({})", display_type)
+    } else {
+        format!(" ({}, direct)", display_type)
+    };
 
     sources.push(AvailableSource {
         id: "screen-full".to_string(),
-        label: format!("Full Screen ({})", display_type),
+        label: format!("Full Screen{}", screen_note),
         source_type: "screen".to_string(),
-        device_path: None,
+        device_path: loopback_device.clone(),
         available: true,
     });
 
@@ -109,7 +117,7 @@ pub async fn detect_sources() -> Result<Vec<AvailableSource>, String> {
         id: "screen-region".to_string(),
         label: "Screen Region".to_string(),
         source_type: "screen".to_string(),
-        device_path: None,
+        device_path: loopback_device,
         available: true,
     });
 
@@ -122,7 +130,108 @@ pub async fn detect_sources() -> Result<Vec<AvailableSource>, String> {
         available: true,
     });
 
+    // Stream input (YouTube/RTSP) — check if yt-dlp is available
+    let ytdlp_available = tokio::process::Command::new("yt-dlp")
+        .arg("--version")
+        .output()
+        .await
+        .map(|o| o.status.success())
+        .unwrap_or(false);
+
+    sources.push(AvailableSource {
+        id: "stream".to_string(),
+        label: if ytdlp_available {
+            "YouTube / RTSP Stream".to_string()
+        } else {
+            "RTSP Stream".to_string()
+        },
+        source_type: "stream".to_string(),
+        device_path: None,
+        available: true,
+    });
+
     Ok(sources)
+}
+
+/// Resolve a stream URL. For YouTube/HTTP video pages, uses yt-dlp to extract
+/// the direct stream URL. For RTSP, returns the URL as-is.
+#[tauri::command]
+pub async fn resolve_stream_url(url: String) -> Result<String, String> {
+    // Validate the URL first
+    crate::video_sources::validate_stream_url_public(&url)?;
+
+    if url.starts_with("rtsp://") {
+        return Ok(url);
+    }
+
+    // Try yt-dlp to resolve YouTube/HTTP video URLs to direct stream
+    let output = tokio::process::Command::new("yt-dlp")
+        .args(["-f", "best[height<=720]", "-g", &url])
+        .output()
+        .await
+        .map_err(|e| format!("yt-dlp not available: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(format!("yt-dlp failed: {}", stderr.lines().next().unwrap_or("unknown error")));
+    }
+
+    let resolved = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_string();
+
+    if resolved.is_empty() {
+        return Err("yt-dlp returned no URL".to_string());
+    }
+
+    Ok(resolved)
+}
+
+/// Detect the first v4l2loopback virtual device (e.g. /dev/video10).
+/// Returns None if the v4l2loopback kernel module is not loaded.
+async fn detect_v4l2loopback() -> Option<String> {
+    // v4l2loopback devices show up as "Dummy video device" or similar platform devices
+    let output = tokio::process::Command::new("v4l2-ctl")
+        .arg("--list-devices")
+        .output()
+        .await
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut current_label = String::new();
+
+    for line in stdout.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with('/') && !trimmed.is_empty() {
+            current_label = trimmed.to_lowercase();
+        } else if trimmed.starts_with("/dev/video") {
+            // v4l2loopback typically shows as "Dummy video device" or contains "v4l2loopback"
+            if current_label.contains("dummy") || current_label.contains("v4l2 loopback")
+                || current_label.contains("v4l2loopback") || current_label.contains("screen capture")
+            {
+                return Some(trimmed.to_string());
+            }
+        }
+    }
+    None
+}
+
+#[derive(Serialize)]
+pub struct V4l2LoopbackStatus {
+    pub available: bool,
+    pub device_path: Option<String>,
+}
+
+#[tauri::command]
+pub async fn check_v4l2loopback() -> Result<V4l2LoopbackStatus, String> {
+    let device = detect_v4l2loopback().await;
+    Ok(V4l2LoopbackStatus {
+        available: device.is_some(),
+        device_path: device,
+    })
 }
 
 #[tauri::command]

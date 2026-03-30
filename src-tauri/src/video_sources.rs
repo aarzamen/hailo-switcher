@@ -7,6 +7,7 @@ pub enum VideoSource {
     Device(String),
     File(String),
     Screen(ScreenRegion),
+    Stream(String),
     Demo,
 }
 
@@ -50,12 +51,41 @@ fn validate_file_path(path: &str) -> Result<&str, String> {
     Ok(path)
 }
 
+/// Public wrapper for stream URL validation (used by commands).
+pub fn validate_stream_url_public(url: &str) -> Result<&str, String> {
+    validate_stream_url(url)
+}
+
+/// Validate a stream URL (must be http/https/rtsp, no shell metacharacters).
+fn validate_stream_url(url: &str) -> Result<&str, String> {
+    if url.contains('\0') {
+        return Err("Stream URL contains null bytes".to_string());
+    }
+    if !url.starts_with("http://")
+        && !url.starts_with("https://")
+        && !url.starts_with("rtsp://")
+    {
+        return Err(format!(
+            "Stream URL must start with http://, https://, or rtsp:// — got: {}",
+            url
+        ));
+    }
+    // Block shell metacharacters that could be injected into command lines
+    if url.contains('`') || url.contains('$') || url.contains(';')
+        || url.contains('|') || url.contains('&')
+    {
+        return Err("Stream URL contains disallowed characters".to_string());
+    }
+    Ok(url)
+}
+
 impl VideoSource {
     /// Validate the source paths. Returns Err if paths are invalid.
     pub fn validate(&self) -> Result<(), String> {
         match self {
             VideoSource::Device(path) => { validate_device_path(path)?; Ok(()) }
             VideoSource::File(path) => { validate_file_path(path)?; Ok(()) }
+            VideoSource::Stream(url) => { validate_stream_url(url)?; Ok(()) }
             VideoSource::Screen(_) | VideoSource::Demo => Ok(()),
         }
     }
@@ -75,6 +105,11 @@ impl VideoSource {
                     Some(detect_screen_source(Some(region)))
                 }
             }
+            VideoSource::Stream(url) => {
+                // For RTSP URLs, pass directly. For YouTube/HTTP, resolve via yt-dlp
+                // at runtime in the pipeline command. Pass the URL as-is here.
+                Some(url.clone())
+            }
             VideoSource::Demo => None,
         }
     }
@@ -84,6 +119,14 @@ impl VideoSource {
         match self {
             VideoSource::Device(path) => format!("v4l2src device={}", path),
             VideoSource::File(path) => format!("filesrc location={} ! decodebin", path),
+            VideoSource::Stream(url) => {
+                if url.starts_with("rtsp://") {
+                    format!("rtspsrc location={} latency=100 ! decodebin", url)
+                } else {
+                    // HTTP/HTTPS streams (including yt-dlp resolved URLs)
+                    format!("souphttpsrc location={} ! decodebin", url)
+                }
+            }
             VideoSource::Screen(region) => {
                 if is_wayland() {
                     if region.full_screen {

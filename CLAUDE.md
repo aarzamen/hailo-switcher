@@ -21,15 +21,17 @@
 
 ## Conventions
 - Path alias: `@/` maps to `./src/`
-- State: All app state in `src/stores/pipelineStore.ts` (Zustand)
+- State: Zustand stores in `src/stores/` — pipelineStore, detectionStore, captureStore
 - Theming: CSS variables in `src/themes/*.css`, selected via class on `<html>`
 - Components: Functional React with hooks, no class components except ErrorBoundary
 - Rust: Commands in `src-tauri/src/commands/`, one file per domain
 - Config: All paths loaded from env vars with defaults in `src-tauri/src/config.rs`
+- Video sources: `VideoSource` enum (Device/File/Screen/Stream/Demo) in `video_sources.rs`
 
 ## Testing
 - Button audit: `bunx tsx tests/button-audit.ts` (Playwright click-test of every UI element)
 - Visual verification: `bun run verify` (Playwright screenshot walkthrough)
+- Sprint 3 verification: `bunx tsx tests/sprint3-verify.ts` (detections, streaming, errors)
 - Manual testing: Start app, select pipeline, verify logs stream, stop pipeline
 - Verify Hailo detection: `hailortcli fw-control identify`
 
@@ -54,3 +56,6 @@ This rule is non-negotiable. Do not ship UI without Playwright proof.
 - `WEBKIT_DISABLE_DMABUF_RENDERER=1` may be needed for WebKitGTK on some Pi configs
 - NPU needs ~2 second cooldown between pipeline switches
 - rpicam-apps pipelines require Pi Camera Module (CSI) — other sources work with Python pipelines only
+- YouTube streaming requires `yt-dlp` installed (`pip install yt-dlp`)
+- Screen capture via v4l2loopback requires `sudo modprobe v4l2loopback`
+- CSP is set — inline scripts won't work, all scripts must be bundled
